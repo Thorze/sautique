@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Les sons sont chargés par leur nom (getIdentifier) : on empêche R8 de les supprimer. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@raw/*" />

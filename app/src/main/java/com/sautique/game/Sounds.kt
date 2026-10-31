@@ -29,6 +29,7 @@ class Sounds(private val context: Context) {
         BONUS_LOSE("bonus_rate"),
         TAP("tape"),
         STAR("etoile"),
+        COIN("piece"),
         WHEEL_TICK("roue"),
         UNLOCK("congratulations", "deblocage"),
         CLICK("clic")
@@ -92,11 +93,12 @@ class Sounds(private val context: Context) {
             for (f in s.files) {
                 val res = resId(f)
                 if (res == 0) continue
-                // Au-delà de ~80 Ko, SoundPool risque de couper le son : on passe par MediaPlayer
+                // Les sons longs (fichier > 20 Ko, soit plus de ~2 s en OGG) passent par MediaPlayer :
+                // SoundPool risquerait de les couper
                 val size = try {
                     context.resources.openRawResourceFd(res).use { it.length }
                 } catch (e: Exception) { 0L }
-                if (size in 1..80_000) short += pool.load(context, res, 1) else long += res
+                if (size in 1..20_000) short += pool.load(context, res, 1) else long += res
             }
             if (short.isNotEmpty()) shortIds[s] = short
             if (long.isNotEmpty()) longRes[s] = long

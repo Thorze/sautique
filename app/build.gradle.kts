@@ -47,7 +47,10 @@ android {
     buildTypes {
         val signing = signingConfigs.findByName("sautique") ?: signingConfigs.getByName("debug")
         release {
-            isMinifyEnabled = false
+            // R8 : code et ressources inutilisés retirés pour un APK plus léger
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signing
         }
         debug {
@@ -62,6 +65,10 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
 }
 
 // Sons : les fichiers du dossier sons/ (à la racine du dépôt) sont copiés dans les ressources

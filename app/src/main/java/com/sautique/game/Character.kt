@@ -89,6 +89,7 @@ internal fun GameView.drawPlayer(canvas: Canvas) {
         val dirSign = if (alongX) 1f else -1f
         when (jumpTrick) {
             JumpTrick.FRONTFLIP -> rotation = 360f * e * dirSign
+            JumpTrick.DOUBLE_FLIP -> rotation = 720f * e * dirSign
             JumpTrick.BACKFLIP -> rotation = -360f * e * dirSign
             JumpTrick.PIROUETTE -> flipScaleX = kotlin.math.cos(e * 2f * Math.PI.toFloat())
             else -> {}
@@ -229,7 +230,26 @@ internal fun GameView.drawCharacter(
             val sy0 = isoY(wx, y0, wz)
             val sw = k * 0.12f
             val sh = k * 0.06f
-            if (lookShoes == "bottes") {
+            if (lookShoes == "fusees") {
+                accPaint.color = Color.parseColor("#9AA3B5")
+                rect.set(sx0 - sw * 0.8f, sy0 - k * 0.12f, sx0 + sw * 0.8f, sy0 + sh * 0.5f)
+                canvas.drawRoundRect(rect, sw * 0.4f, sw * 0.4f, accPaint)
+                accPaint.color = Color.parseColor("#E53950")
+                canvas.drawRect(sx0 - sw * 0.8f, sy0 - k * 0.07f, sx0 + sw * 0.8f, sy0 - k * 0.04f, accPaint)
+                // Flammes en l'air
+                if (y0 > 0.05f || state == State.FALLING) {
+                    val fl = k * (0.14f + 0.06f * kotlin.math.sin(time * 40f + i))
+                    tmpPath.reset()
+                    tmpPath.moveTo(sx0 - sw * 0.55f, sy0 + sh * 0.5f)
+                    tmpPath.lineTo(sx0 + sw * 0.55f, sy0 + sh * 0.5f)
+                    tmpPath.lineTo(sx0, sy0 + sh * 0.5f + fl)
+                    tmpPath.close()
+                    accPaint.color = Color.parseColor("#FF9F1C")
+                    canvas.drawPath(tmpPath, accPaint)
+                    accPaint.color = Color.parseColor("#FFE066")
+                    canvas.drawCircle(sx0, sy0 + sh * 0.5f + fl * 0.3f, sw * 0.25f, accPaint)
+                }
+            } else if (lookShoes == "bottes") {
                 accPaint.color = Color.parseColor("#7B4A2A")
                 canvas.drawRect(sx0 - sw * 0.6f, sy0 - k * 0.15f, sx0 + sw * 0.6f, sy0, accPaint)
                 rect.set(sx0 - sw, sy0 - sh, sx0 + sw, sy0 + sh)
@@ -315,6 +335,29 @@ internal fun GameView.drawCharacter(
             accPaint.color = Color.argb(150, 255, 255, 255)
             for (i in 0..1) canvas.drawCircle(ex[i] - eyeR * 0.6f, ey[i] - eyeR * 0.4f, eyeR * 0.3f, accPaint)
         }
+        "pixel" -> {
+            // Lunettes « 8 bits » : une barre noire et deux verres en escalier
+            accPaint.color = Color.rgb(20, 20, 25)
+            val gw = eyeR * 1.7f
+            val gy = (ey[0] + ey[1]) / 2f
+            val gx0 = minOf(ex[0], ex[1]) - gw
+            val gx1 = maxOf(ex[0], ex[1]) + gw
+            canvas.drawRect(gx0, gy - eyeR * 1.0f, gx1, gy - eyeR * 0.45f, accPaint)
+            for (i in 0..1) {
+                canvas.drawRect(ex[i] - gw, gy - eyeR * 0.5f, ex[i] + gw * 0.9f, gy + eyeR * 0.3f, accPaint)
+                canvas.drawRect(ex[i] - gw * 0.6f, gy + eyeR * 0.25f, ex[i] + gw * 0.5f, gy + eyeR * 0.85f, accPaint)
+            }
+            accPaint.color = Color.WHITE
+            for (i in 0..1) canvas.drawRect(ex[i] - gw * 0.7f, gy - eyeR * 0.35f, ex[i] - gw * 0.35f, gy, accPaint)
+        }
+        "monocle" -> {
+            val i = 1
+            accStroke.color = Color.parseColor("#D4A017")
+            accStroke.strokeWidth = k * 0.022f
+            canvas.drawCircle(ex[i], ey[i], eyeR * 1.6f, accStroke)
+            accStroke.strokeWidth = k * 0.01f
+            canvas.drawLine(ex[i] + eyeR * 1.2f, ey[i] + eyeR * 1.1f, ex[i] + eyeR * 1.6f, ey[i] + eyeR * 5f, accStroke)
+        }
         "coeur" -> {
             accPaint.color = Color.parseColor("#FF4D8D")
             val sz = eyeR * 1.2f
@@ -359,6 +402,46 @@ internal fun GameView.drawCharacter(
             rect.set(-hs * 0.72f, hy - hs * 1.65f, hs * 0.72f, hy - hs * 1.25f)
             canvas.drawOval(rect, accPaint)
         }
+        "magicien" -> {
+            accPaint.color = Color.parseColor("#2F3FA8")
+            rect.set(-hs * 1.15f, hy - hs * 0.3f, hs * 1.15f, hy + hs * 0.25f)
+            canvas.drawOval(rect, accPaint)
+            tmpPath.reset()
+            tmpPath.moveTo(-hs * 0.75f, hy - hs * 0.05f)
+            tmpPath.lineTo(hs * 0.75f, hy - hs * 0.05f)
+            tmpPath.lineTo(fdx * hs * 0.4f, hy - hs * 2.1f)
+            tmpPath.close()
+            canvas.drawPath(tmpPath, accPaint)
+            accPaint.color = Color.parseColor("#FFD54F")
+            drawStar(canvas, -hs * 0.15f, hy - hs * 0.6f, hs * 0.2f, accPaint)
+            drawStar(canvas, hs * 0.25f, hy - hs * 1.15f, hs * 0.14f, accPaint)
+            canvas.drawCircle(fdx * hs * 0.4f, hy - hs * 2.1f, hs * 0.1f, accPaint)
+        }
+        "viking" -> {
+            // Cornes
+            accPaint.color = Color.parseColor("#F3EEDF")
+            for (side in intArrayOf(-1, 1)) {
+                tmpPath.reset()
+                tmpPath.moveTo(side * hs * 0.55f, hy - hs * 0.35f)
+                tmpPath.quadTo(side * hs * 1.35f, hy - hs * 0.6f, side * hs * 1.15f, hy - hs * 1.35f)
+                tmpPath.quadTo(side * hs * 1.0f, hy - hs * 0.75f, side * hs * 0.45f, hy - hs * 0.6f)
+                tmpPath.close()
+                canvas.drawPath(tmpPath, accPaint)
+            }
+            // Casque
+            accPaint.color = Color.parseColor("#8D96A8")
+            rect.set(-hs * 0.85f, hy - hs * 0.85f, hs * 0.85f, hy + hs * 0.35f)
+            canvas.drawArc(rect, 180f, 180f, true, accPaint)
+            accPaint.color = Color.parseColor("#C98A00")
+            canvas.drawRect(-hs * 0.85f, hy - hs * 0.3f, hs * 0.85f, hy - hs * 0.15f, accPaint)
+        }
+        "aureole" -> {
+            accStroke.color = Color.parseColor("#FFD54F")
+            accStroke.strokeWidth = k * 0.035f
+            val ay = hy - hs * 0.7f + kotlin.math.sin(time * 3f) * hs * 0.08f
+            rect.set(-hs * 0.85f, ay - hs * 0.25f, hs * 0.85f, ay + hs * 0.25f)
+            canvas.drawOval(rect, accStroke)
+        }
         "couronne" -> {
             accPaint.color = Color.parseColor("#F5C542")
             tmpPath.reset()
@@ -380,19 +463,42 @@ internal fun GameView.drawCharacter(
 
 /** Charge l'apparence choisie (et repasse sur un élément gratuit s'il n'est plus débloqué). */
 internal fun GameView.loadLook() {
-    val pts = profile.totalPoints
     fun pick(slot: Skins.Slot): String {
         val item = Skins.find(slot, profile.selected(slot))
-        return if (item.cost <= pts) item.id else Skins.default(slot)
+        return if (profile.available(item)) item.id else Skins.default(slot)
     }
     lookShape = pick(Skins.Slot.SHAPE)
     lookGlasses = pick(Skins.Slot.GLASSES)
     lookHat = pick(Skins.Slot.HAT)
     lookShoes = pick(Skins.Slot.SHOES)
-    val c = Skins.find(Skins.Slot.COLOR, pick(Skins.Slot.COLOR)).color
+    lookColor = pick(Skins.Slot.COLOR)
+    val c = Skins.find(Skins.Slot.COLOR, lookColor).color
     playerTop.color = shade(c, 1.18f)
     playerLeft.color = c
     playerRight.color = shade(c, 0.78f)
+    // Couleurs spéciales : dégradés (coordonnées locales du personnage)
+    val r = k * 0.35f
+    val shader: (Float) -> Shader? = { f ->
+        when (lookColor) {
+            Skins.RAINBOW -> LinearGradient(
+                -r, -r * 2f, r, 0f,
+                intArrayOf(
+                    shade(Color.parseColor("#FF4D4D"), f), shade(Color.parseColor("#FFC93C"), f),
+                    shade(Color.parseColor("#3DBE6E"), f), shade(Color.parseColor("#3F8EFC"), f),
+                    shade(Color.parseColor("#8E5CD9"), f)
+                ), null, Shader.TileMode.MIRROR
+            )
+            Skins.GALAXY -> LinearGradient(
+                -r, -r * 2f, r, 0f,
+                intArrayOf(shade(Color.parseColor("#1B1446"), f), shade(Color.parseColor("#6A3FB5"), f), shade(Color.parseColor("#E0609E"), f)),
+                null, Shader.TileMode.MIRROR
+            )
+            else -> null
+        }
+    }
+    playerTop.shader = shader(1.15f)
+    playerLeft.shader = shader(1f)
+    playerRight.shader = shader(0.75f)
 }
 
 internal fun GameView.currentLook(slot: Skins.Slot): String = when (slot) {
@@ -400,9 +506,5 @@ internal fun GameView.currentLook(slot: Skins.Slot): String = when (slot) {
     Skins.Slot.GLASSES -> lookGlasses
     Skins.Slot.HAT -> lookHat
     Skins.Slot.SHOES -> lookShoes
-    Skins.Slot.COLOR -> {
-        val pts = profile.totalPoints
-        val item = Skins.find(slot, profile.selected(slot))
-        if (item.cost <= pts) item.id else Skins.default(slot)
-    }
+    Skins.Slot.COLOR -> lookColor
 }

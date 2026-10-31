@@ -32,13 +32,6 @@ object Updater {
     private var checking = false
     private var pending: Release? = null
 
-    /** v1.4.2 -> 10402. Doit rester identique au calcul du workflow de release. */
-    fun versionCodeOf(tag: String): Int? {
-        val m = Regex("""^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?""").find(tag.trim()) ?: return null
-        val (a, b, c) = m.destructured
-        return a.toInt() * 10000 + (b.toIntOrNull() ?: 0) * 100 + (c.toIntOrNull() ?: 0)
-    }
-
     /** Vérifie s'il existe une version plus récente. [manual] affiche aussi « à jour » / les erreurs. */
     fun check(activity: Activity, manual: Boolean = false) {
         if (checking || BuildConfig.UPDATE_REPO.isBlank()) return
@@ -77,7 +70,7 @@ object Updater {
             if (conn.responseCode != 200) return null
             val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
             val tag = json.optString("tag_name")
-            val code = versionCodeOf(tag) ?: return null
+            val code = Scoring.versionCodeOf(tag) ?: return null
             val assets = json.optJSONArray("assets") ?: return null
             var apk: String? = null
             for (i in 0 until assets.length()) {

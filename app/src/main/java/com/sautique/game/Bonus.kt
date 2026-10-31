@@ -61,7 +61,7 @@ internal fun GameView.bonusTap(x: Float, y: Float) {
                 bonusTaps++
                 sparkles.add(floatArrayOf(hit[0], hit[1], 0.5f))
                 sounds.play(Sounds.Sfx.STAR, 1f, 0.9f + min(bonusTaps, 12) * 0.05f)
-                performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                vibrate(HapticFeedbackConstants.VIRTUAL_KEY)
             }
         }
         BonusType.WHEEL -> wheelStopping = true
@@ -75,7 +75,8 @@ internal fun GameView.finishBonus(gain: Int) {
     bonusResult = 1
     bonusResultT = 0f
     sounds.play(if (gain > 0) Sounds.Sfx.BONUS_WIN else Sounds.Sfx.BONUS_LOSE)
-    performHapticFeedback(if (gain > 0) HapticFeedbackConstants.VIRTUAL_KEY else HapticFeedbackConstants.LONG_PRESS)
+    if (gain > 0) missionEvent(MissionType.BONUS_WIN)
+    vibrate(if (gain > 0) HapticFeedbackConstants.VIRTUAL_KEY else HapticFeedbackConstants.LONG_PRESS)
 }
 
 /** Case de la roue sous le repère (en haut). */

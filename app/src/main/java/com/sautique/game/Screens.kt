@@ -18,8 +18,8 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.random.Random
 
-/** Fenêtre de saisie du pseudo. */
-internal fun GameView.askPseudo(first: Boolean) {
+/** Fenêtre de saisie du pseudo (vérifie qu'il n'est pas déjà pris). */
+internal fun GameView.askPseudo(first: Boolean, error: String? = null) {
     if (pseudoDialogShown) return
     pseudoDialogShown = true
     val input = android.widget.EditText(context).apply {
@@ -34,49 +34,77 @@ internal fun GameView.askPseudo(first: Boolean) {
         setPadding(pad, pad / 2, pad, 0)
         addView(input)
     }
+    val mustChoose = first || pseudoConflict
     android.app.AlertDialog.Builder(context)
         .setTitle(if (first) "Choisis ton pseudo" else "Changer de pseudo")
-        .setMessage("Il apparaîtra dans le classement mondial.")
+        .setMessage(error ?: "Il apparaîtra dans le classement mondial.")
         .setView(container)
-        .setCancelable(!first)
+        .setCancelable(!mustChoose)
         .setPositiveButton("OK") { _, _ ->
             val p = input.text.toString().trim()
-            when {
-                p.isNotEmpty() -> profile.pseudo = p
-                profile.pseudo.isNullOrBlank() -> profile.pseudo = "Joueur" + Random.nextInt(1000, 10000)
+            if (p.isEmpty()) {
+                if (profile.pseudo.isNullOrBlank()) profile.pseudo = "Joueur" + Random.nextInt(1000, 10000)
+                afterPseudo()
+                return@setPositiveButton
             }
-            syncOnline()
-            if (!profile.customized) openCustomize()
+            // Vérifie auprès du serveur que personne d'autre ne l'utilise
+            online.checkPseudo(p, profile.playerId) { free ->
+                if (free == false) {
+                    post { askPseudo(first, "« $p » est déjà pris, choisis-en un autre.") }
+                } else {
+                    profile.pseudo = p
+                    pseudoConflict = false
+                    afterPseudo()
+                }
+            }
         }
-        .apply { if (!first) setNegativeButton("Annuler", null) }
+        .apply { if (!mustChoose) setNegativeButton("Annuler", null) }
         .setOnDismissListener { pseudoDialogShown = false }
         .show()
 }
 
-/** Envoie le record et le pseudo au classement mondial si besoin. */
+private fun GameView.afterPseudo() {
+    syncOnline()
+    if (!profile.customized) openCustomize()
+}
+
+/** Envoie la meilleure partie en attente (et le pseudo) au serveur. */
 internal fun GameView.syncOnline() {
     val pseudo = profile.pseudo
     if (syncing || !online.configured || pseudo.isNullOrBlank() || !profile.needsSync()) return
     syncing = true
-    val sentBest = profile.best
-    online.submit(profile.playerId, pseudo, sentBest) { ok ->
+    val score = profile.pendingScore
+    online.submit(profile.playerId, pseudo, score, profile.pendingDuration, profile.pendingJumps) { result ->
         syncing = false
-        if (ok) {
-            profile.syncedBest = sentBest
-            profile.syncedPseudo = pseudo
-            if (state == State.LEADERBOARD && boardWorld) loadWorld()
-            // Le pseudo ou le record a pu changer pendant l'envoi
-            if (profile.needsSync()) syncOnline()
+        when (result) {
+            ScoreServer.SubmitResult.OK -> {
+                profile.clearPending(score)
+                profile.syncedPseudo = pseudo
+                if (state == State.LEADERBOARD && boardTab > 0) loadWorld()
+                // Le pseudo ou une nouvelle partie a pu arriver pendant l'envoi
+                if (profile.needsSync() && (profile.pendingScore != score || profile.pseudo != pseudo)) syncOnline()
+            }
+            ScoreServer.SubmitResult.PSEUDO_TAKEN -> {
+                pseudoConflict = true
+                askPseudo(false, "Le pseudo « $pseudo » est déjà utilisé par un autre joueur. Choisis-en un autre.")
+            }
+            // Score refusé par le serveur : on ne réessaie pas
+            ScoreServer.SubmitResult.REJECTED -> {
+                profile.clearPending(score)
+                profile.syncedPseudo = pseudo
+            }
+            ScoreServer.SubmitResult.ERROR -> {}
         }
     }
 }
 
-internal fun GameView.openBoard(world: Boolean) {
+/** Classement : 0 = perso, 1 = semaine, 2 = de tous les temps. */
+internal fun GameView.openBoard(tab: Int) {
     if (state != State.LEADERBOARD) boardReturnState = state
     state = State.LEADERBOARD
-    boardWorld = world
+    boardTab = tab
     personalRuns = profile.topRuns()
-    if (world) loadWorld()
+    if (tab > 0) loadWorld()
 }
 
 internal fun GameView.loadWorld() {
@@ -86,7 +114,9 @@ internal fun GameView.loadWorld() {
     }
     worldStatus = WorldStatus.LOADING
     worldRank = null
-    online.fetchBoard(10, profile.playerId) { board ->
+    val tab = boardTab
+    online.fetchBoard(10, profile.playerId, if (tab == 1) "week" else "all") { board ->
+        if (boardTab != tab) return@fetchBoard
         if (board == null) {
             worldStatus = WorldStatus.ERROR
         } else {
@@ -95,6 +125,12 @@ internal fun GameView.loadWorld() {
             worldStatus = WorldStatus.OK
         }
     }
+}
+
+internal fun GameView.openMissions() {
+    if (state == State.MISSIONS) return
+    missionsReturnState = state
+    state = State.MISSIONS
 }
 
 internal fun GameView.openCustomize() {
@@ -127,7 +163,7 @@ internal fun GameView.drawButton(canvas: Canvas, r: RectF, label: String, bg: Pa
     val radius = r.height() / 2f
     canvas.drawRoundRect(r, radius, radius, bg)
     btnTextPaint.textSize = textSize
-    btnTextPaint.color = if (bg === tabOffPaint || bg === lockedPaint || (bg === itemPaint && isLight(bg.color)))
+    btnTextPaint.color = if (bg === tabOffPaint || bg === lockedPaint || bg === shopPaint || (bg === itemPaint && isLight(bg.color)))
         Color.parseColor("#2E3A59") else Color.WHITE
     val label2 = ellipsize(label, btnTextPaint, r.width() - radius)
     canvas.drawText(label2, r.centerX(), r.centerY() - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2f, btnTextPaint)
@@ -160,11 +196,13 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
     // Onglets
     val tabTop = top + w * 0.17f
     val tabH = w * 0.1f
-    val mid = w / 2f
-    drawButton(canvas, RectF(left + w * 0.05f, tabTop, mid - w * 0.01f, tabTop + tabH), "Top perso",
-        if (!boardWorld) tabOnPaint else tabOffPaint, w * 0.042f) { openBoard(world = false) }
-    drawButton(canvas, RectF(mid + w * 0.01f, tabTop, right - w * 0.05f, tabTop + tabH), "Top mondial",
-        if (boardWorld) tabOnPaint else tabOffPaint, w * 0.042f) { openBoard(world = true) }
+    val tabs = listOf("Perso", "Semaine", "Mondial")
+    val tw = (right - left - w * 0.08f) / tabs.size
+    tabs.forEachIndexed { i, label ->
+        val x0 = left + w * 0.04f + i * tw
+        drawButton(canvas, RectF(x0 + w * 0.006f, tabTop, x0 + tw - w * 0.006f, tabTop + tabH), label,
+            if (boardTab == i) tabOnPaint else tabOffPaint, w * 0.04f) { openBoard(i) }
+    }
 
     // Lignes
     val listTop = tabTop + tabH + w * 0.06f
@@ -192,7 +230,7 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
         canvas.drawText(value, colScore, ty, darkTextPaint)
     }
 
-    if (!boardWorld) {
+    if (boardTab == 0) {
         if (personalRuns.isEmpty()) {
             canvas.drawText("Pas encore de partie.", w / 2f, centerY, greyTextPaint)
         } else {
@@ -219,7 +257,9 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
         val rank = worldRank
         val info = when {
             best <= 0 -> "Joue une partie pour entrer au classement !"
+            rank != null && boardTab == 1 -> "${profile.pseudo ?: ""} : place n°$rank cette semaine"
             rank != null -> "${profile.pseudo ?: ""} : place n°$rank  (record $best)"
+            boardTab == 1 -> "Pas encore de score cette semaine"
             else -> "Ton record : $best"
         }
         canvas.drawText(ellipsize(info, greyTextPaint, right - left - w * 0.06f), w / 2f, footer, greyTextPaint)
@@ -255,7 +295,7 @@ internal fun GameView.drawPerfectBar(canvas: Canvas) {
         perfectBarPaint.alpha = (255 * a).toInt()
         canvas.drawRoundRect(rect, bh * 0.35f, bh * 0.35f, perfectBarPaint)
     }
-    val points = if (perfectStreak >= 3) perfectPoints(perfectStreak) else lastPerfectPoints
+    val points = if (perfectStreak >= 3) Scoring.perfectPoints(perfectStreak) else lastPerfectPoints
     textPaint.textSize = bh * 0.55f
     textPaint.alpha = (255 * a).toInt()
     canvas.drawText("PERFECT  ×$shownStreak   +$points", 0f, -(textPaint.descent() + textPaint.ascent()) / 2f, textPaint)
@@ -284,12 +324,12 @@ internal fun GameView.drawSettings(canvas: Canvas) {
     val left = w * 0.06f
     val right = w * 0.94f
     val top = h * 0.25f
-    val bottom = top + w * 0.95f
+    val bottom = top + w * 1.12f
     rect.set(left, top, right, bottom)
     canvas.drawRoundRect(rect, w * 0.05f, w * 0.05f, panelPaint)
     darkTextPaint.textAlign = Paint.Align.CENTER
     darkTextPaint.textSize = w * 0.07f
-    canvas.drawText("Son", w / 2f, top + w * 0.11f, darkTextPaint)
+    canvas.drawText("Son et vibrations", w / 2f, top + w * 0.11f, darkTextPaint)
 
     val sl = left + w * 0.08f
     val sr = right - w * 0.08f
@@ -298,6 +338,12 @@ internal fun GameView.drawSettings(canvas: Canvas) {
     musicSlider.set(sl, top + w * 0.55f, sr, top + w * 0.55f + bh)
     drawSlider(canvas, sfxSlider, "Effets sonores", sounds.soundVolume)
     drawSlider(canvas, musicSlider, "Musique", sounds.musicVolume)
+    drawButton(canvas, RectF(sl, top + w * 0.68f, sr, top + w * 0.79f),
+        "📳 Vibrations : " + (if (profile.vibrationOn) "oui" else "non"),
+        if (profile.vibrationOn) tabOnPaint else tabOffPaint, w * 0.042f) {
+        profile.vibrationOn = !profile.vibrationOn
+        if (profile.vibrationOn) vibrate(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+    }
 
     drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.17f, w * 0.7f, bottom - w * 0.06f), "OK",
         primaryBtnPaint, w * 0.05f) { state = settingsReturnState }
@@ -353,14 +399,16 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
         val x0 = left + w * 0.04f + col * cellW
         val y0 = gridTop + row * (cellH + w * 0.02f)
         val r = RectF(x0 + w * 0.01f, y0, x0 + cellW - w * 0.01f, y0 + cellH)
-        val unlocked = item.cost <= pts
+        val unlocked = profile.available(item)
         val isSel = item.id == selected
         val label = when {
+            !unlocked && item.isShop -> "🪙 ${item.price} · ${item.label}"
             !unlocked -> "🔒 ${item.label} · ${item.cost}"
             isSel -> "✓ ${item.label}"
             else -> item.label
         }
         val bg = when {
+            !unlocked && item.isShop -> shopPaint
             !unlocked -> lockedPaint
             custSlot == Skins.Slot.COLOR -> itemPaint.also { it.color = item.color }
             isSel -> tabOnPaint
@@ -372,12 +420,35 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
             canvas.drawRoundRect(rr, rr.height() / 2f, rr.height() / 2f, bubbleStroke)
         }
         drawButton(canvas, r, label, bg, w * 0.036f) {
-            if (unlocked) {
-                profile.select(custSlot, item.id)
-                loadLook()
-            } else {
-                custMsg = "🔒 Se débloque à ${item.cost} points cumulés"
-                custMsgT = 2.5f
+            when {
+                unlocked -> {
+                    profile.select(custSlot, item.id)
+                    loadLook()
+                }
+                item.isShop && profile.coins < item.price -> {
+                    custMsg = "Il te manque ${item.price - profile.coins} 🪙 pour « ${item.label} »"
+                    custMsgT = 2.5f
+                }
+                // Achat : un premier appui demande confirmation, le second achète
+                item.isShop && pendingBuy === item && custMsgT > 0f -> {
+                    if (profile.buy(item)) {
+                        profile.select(custSlot, item.id)
+                        loadLook()
+                        custMsg = "🎉 « ${item.label} » acheté !"
+                        custMsgT = 2.5f
+                        sounds.play(Sounds.Sfx.UNLOCK)
+                    }
+                    pendingBuy = null
+                }
+                item.isShop -> {
+                    pendingBuy = item
+                    custMsg = "Touche encore pour acheter « ${item.label} » (${item.price} 🪙)"
+                    custMsgT = 3f
+                }
+                else -> {
+                    custMsg = "🔒 Se débloque à ${item.cost} points cumulés"
+                    custMsgT = 2.5f
+                }
             }
         }
     }
@@ -388,8 +459,8 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
     val nextItem = Skins.nextUnlock(pts)
     val info = when {
         custMsgT > 0f -> custMsg
-        nextItem != null -> "Points cumulés : $pts · prochain : ${nextItem.label} à ${nextItem.cost}"
-        else -> "Points cumulés : $pts · tout est débloqué !"
+        nextItem != null -> "🪙 ${profile.coins} · $pts pts · prochain : ${nextItem.label} à ${nextItem.cost}"
+        else -> "🪙 ${profile.coins} · $pts pts · tout est débloqué !"
     }
     canvas.drawText(ellipsize(info, greyTextPaint, right - left - w * 0.06f), w / 2f, footY, greyTextPaint)
     drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.15f, w * 0.7f, bottom - w * 0.05f), "OK",
@@ -411,24 +482,28 @@ internal fun GameView.drawGameOver(canvas: Canvas) {
         if (newBest) "Nouveau record !" else "Record : $best",
         w / 2f, y0 + w * 0.24f, textPaint
     )
+    if (coinsThisRun > 0) {
+        textPaint.textSize = w * 0.045f
+        canvas.drawText("+$coinsThisRun 🪙 ramassées (total ${profile.coins})", w / 2f, y0 + w * 0.31f, textPaint)
+    }
     if (gameOverTime > 0.6f) {
         val bh = w * 0.13f
-        var y = y0 + w * 0.34f
+        var y = y0 + w * 0.36f
         drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + bh), "Rejouer", primaryBtnPaint, w * 0.06f) { resetGame() }
         y += bh + w * 0.04f
         val sh = w * 0.11f
-        drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), "Top perso", secondaryBtnPaint, w * 0.045f) {
-            openBoard(world = false)
+        drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), "🏆 Classement", secondaryBtnPaint, w * 0.042f) {
+            openBoard(1)
         }
-        drawButton(canvas, RectF(w * 0.51f, y, w * 0.9f, y + sh), "Top mondial", secondaryBtnPaint, w * 0.045f) {
-            openBoard(world = true)
+        drawButton(canvas, RectF(w * 0.51f, y, w * 0.9f, y + sh), "📋 Missions", secondaryBtnPaint, w * 0.042f) {
+            openMissions()
         }
         y += sh + w * 0.04f
         drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), "✎ " + (profile.pseudo ?: "Pseudo"),
             chipPaint, w * 0.04f) { askPseudo(first = false) }
         drawButton(canvas, RectF(w * 0.51f, y, w * 0.9f, y + sh), "🎨 Personnage",
             chipPaint, w * 0.04f) { openCustomize() }
-        y += sh + w * 0.09f
+        y += sh + w * 0.08f
         textPaint.textSize = w * 0.042f
         if (unlockedLabels.isNotEmpty()) {
             canvas.drawText(ellipsize("🎁 Débloqué : " + unlockedLabels.joinToString(", "), textPaint, w * 0.92f),
@@ -441,4 +516,92 @@ internal fun GameView.drawGameOver(canvas: Canvas) {
             canvas.drawText("Prochain : ${it.label} (encore ${it.cost - pts} pts)", w / 2f, y, textPaint)
         }
     }
+}
+
+/** Écran de pause. */
+internal fun GameView.drawPause(canvas: Canvas) {
+    canvas.drawRect(0f, 0f, w, h, overlayPaint)
+    val y0 = h * 0.3f
+    textPaint.textSize = w * 0.12f
+    canvas.drawText("Pause", w / 2f, y0, textPaint)
+    textPaint.textSize = w * 0.045f
+    canvas.drawText("Score : $score", w / 2f, y0 + w * 0.09f, textPaint)
+    val bh = w * 0.13f
+    var y = y0 + w * 0.17f
+    drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + bh), "▶ Reprendre", primaryBtnPaint, w * 0.06f) { resumeGame() }
+    y += bh + w * 0.04f
+    val sh = w * 0.11f
+    drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + sh), "🔊 Son", secondaryBtnPaint, w * 0.045f) { openSettings() }
+    y += sh + w * 0.03f
+    drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + sh),
+        "📳 Vibrations : " + (if (profile.vibrationOn) "oui" else "non"), secondaryBtnPaint, w * 0.045f) {
+        profile.vibrationOn = !profile.vibrationOn
+        if (profile.vibrationOn) vibrate(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+    }
+    y += sh + w * 0.03f
+    drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + sh), "Abandonner", chipPaint, w * 0.045f) {
+        endGame("Partie abandonnée")
+    }
+}
+
+/** Missions et défi du jour. */
+internal fun GameView.drawMissions(canvas: Canvas) {
+    canvas.drawRect(0f, 0f, w, h, overlayPaint)
+    val left = w * 0.05f
+    val right = w * 0.95f
+    val top = insetTop + h * 0.06f
+    val bottom = ub - h * 0.04f
+    rect.set(left, top, right, bottom)
+    canvas.drawRoundRect(rect, w * 0.05f, w * 0.05f, panelPaint)
+    darkTextPaint.textAlign = Paint.Align.CENTER
+    darkTextPaint.textSize = w * 0.07f
+    canvas.drawText("Missions du jour", w / 2f, top + w * 0.11f, darkTextPaint)
+    greyTextPaint.textSize = w * 0.04f
+    canvas.drawText("🪙 ${profile.coins} pièces · nouvelles missions chaque jour", w / 2f, top + w * 0.18f, greyTextPaint)
+
+    val list = missions.list()
+    var y = top + w * 0.26f
+    val cardH = w * 0.2f
+    list.forEachIndexed { i, m ->
+        if (m.challenge) {
+            darkTextPaint.textAlign = Paint.Align.LEFT
+            darkTextPaint.textSize = w * 0.045f
+            canvas.drawText("🏅 Défi du jour", left + w * 0.05f, y + w * 0.06f, darkTextPaint)
+            y += w * 0.09f
+        }
+        val done = missions.isDone(i)
+        val p = missions.progress(i)
+        rect.set(left + w * 0.04f, y, right - w * 0.04f, y + cardH)
+        canvas.drawRoundRect(rect, w * 0.03f, w * 0.03f, if (done) highlightPaint else tabOffPaint)
+        darkTextPaint.textAlign = Paint.Align.LEFT
+        darkTextPaint.textSize = w * 0.042f
+        val label = (if (done) "✅ " else "") + m.label
+        canvas.drawText(ellipsize(label, darkTextPaint, right - left - w * 0.3f), left + w * 0.08f, y + w * 0.075f, darkTextPaint)
+        darkTextPaint.textAlign = Paint.Align.RIGHT
+        canvas.drawText("+${m.reward} 🪙", right - w * 0.08f, y + w * 0.075f, darkTextPaint)
+        // Barre de progression
+        val bl = left + w * 0.08f
+        val br = right - w * 0.08f
+        val by = y + w * 0.12f
+        val bh = w * 0.035f
+        rect.set(bl, by, br, by + bh)
+        canvas.drawRoundRect(rect, bh / 2f, bh / 2f, lockedPaint)
+        val f = (p.toFloat() / m.target).coerceIn(0f, 1f)
+        if (f > 0f) {
+            rect.set(bl, by, bl + (br - bl) * f, by + bh)
+            canvas.drawRoundRect(rect, bh / 2f, bh / 2f, if (done) greenZonePaint else primaryBtnPaint)
+        }
+        greyTextPaint.textSize = w * 0.032f
+        canvas.drawText("$p / ${m.target}", w / 2f, by + bh + w * 0.035f, greyTextPaint)
+        y += cardH + w * 0.03f
+    }
+    greyTextPaint.textSize = w * 0.038f
+    val allDone = missions.allMissionsDone()
+    canvas.drawText(
+        if (allDone) "🎉 Les 3 missions sont terminées !"
+        else "Termine les 3 missions : +${DailyMissions.ALL_DONE_REWARD} 🪙 en plus",
+        w / 2f, bottom - w * 0.2f, greyTextPaint
+    )
+    drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.15f, w * 0.7f, bottom - w * 0.05f), "OK",
+        primaryBtnPaint, w * 0.05f) { state = missionsReturnState }
 }

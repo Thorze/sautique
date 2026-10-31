@@ -54,6 +54,11 @@ class GameView(context: Context) : View(context) {
     // Plateformes fragiles
     internal val crumbleFromScore = 25
 
+    // Plateformes spéciales
+    internal val trampolineFromScore = 8
+    internal val miniFromScore = 15
+    internal val movingFromScore = 20
+
     // Frayeur quand on atterrit tout au bord
     internal val scareMargin = 0.12f    // distance au bord (unités) en dessous de laquelle il a peur
     internal val scareDuration = 1.2f
@@ -64,134 +69,36 @@ class GameView(context: Context) : View(context) {
         Color.parseColor("#64B5F6"), Color.parseColor("#ECEFF1")
     )
 
-    /** Une plateforme : un bloc carré ou un cylindre, centré en (cx, cz), dessus à y = 0. */
-    internal inner class Platform(
-        val cx: Float, val cz: Float, val half: Float, val round: Boolean, color: Int,
-        val crumbly: Boolean = false
-    ) {
-        /** Temps écoulé depuis le début de l'effritement (négatif = pas commencé). */
-        var crumbleT = -1f
-        var crumbleDur = 2f
-        /** Chute de la plateforme une fois effondrée (unités vers le bas). */
-        var dropY = 0f
-        var dropV = 0f
-        val collapsed get() = dropY > 0f
-        private val crackPath = Path()
-        private val crackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE
-            strokeWidth = k * 0.035f
-            strokeJoin = Paint.Join.ROUND
-            strokeCap = Paint.Cap.ROUND
-            this.color = Color.rgb(60, 45, 40)
-        }
-
-        /** Profondeur du point le plus éloigné (plus grand x + z) : sert au tri d'affichage. */
-        val farDepth = if (round) cx + cz + half * 1.4142135f else cx + cz + 2f * half
-
-        private val topPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = shade(color, 1.08f) }
-        private val leftPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = shade(color, 0.82f) }
-        private val rightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = shade(color, 0.62f) }
-        private val markPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = shade(color, 0.9f) }
-
-        // Formes pré-calculées en coordonnées locales (origine = centre du dessus projeté)
-        private val topPath = Path()
-        private val leftPath = Path()
-        private val rightPath = Path()
-        private val topOval = RectF()
-        private val sideRect = RectF()
-        private val bottomOval = RectF()
-        private val markOval = RectF()
-
-        init {
-            val d = platformDepth
-            if (round) {
-                val rx = 1.2247449f * k * half
-                val ry = 0.70710677f * k * half
-                val dp = d * k
-                topOval.set(-rx, -ry, rx, ry)
-                sideRect.set(-rx, 0f, rx, dp)
-                bottomOval.set(-rx, dp - ry, rx, dp + ry)
-                leftPaint.shader = LinearGradient(
-                    -rx, 0f, rx, 0f,
-                    shade(color, 0.88f), shade(color, 0.55f), Shader.TileMode.CLAMP
-                )
-            } else {
-                val a = half
-                // A = coin proche (bas de l'écran), B = coin +x (droite), C = loin, D = coin +z (gauche)
-                quad(topPath, -a, 0f, -a, a, 0f, -a, a, 0f, a, -a, 0f, a)
-                // face visible côté z min (en bas à droite)
-                quad(rightPath, -a, 0f, -a, a, 0f, -a, a, -d, -a, -a, -d, -a)
-                // face visible côté x min (en bas à gauche)
-                quad(leftPath, -a, 0f, a, -a, 0f, -a, -a, -d, -a, -a, -d, a)
-            }
-            if (crumbly) {
-                // Fissures en zigzag qui partent du centre
-                repeat(4) { i ->
-                    val angle = (i + Random.nextFloat() * 0.6f) * (Math.PI.toFloat() / 2f)
-                    crackPath.moveTo(0f, 0f)
-                    var r = 0f
-                    var a2 = angle
-                    while (r < half * 0.8f) {
-                        r += half * (0.18f + Random.nextFloat() * 0.12f)
-                        a2 += (Random.nextFloat() - 0.5f) * 0.9f
-                        val rr = min(r, half * 0.85f)
-                        val dx = kotlin.math.cos(a2) * rr
-                        val dz = sin(a2) * rr
-                        crackPath.lineTo(isoX(dx, dz), isoY(dx, 0f, dz))
-                    }
-                }
-            }
-            val m = 0.13f
-            markOval.set(-1.2247449f * k * m, -0.70710677f * k * m, 1.2247449f * k * m, 0.70710677f * k * m)
-        }
-
-        fun contains(x: Float, z: Float): Boolean {
-            if (collapsed) return false
-            val dx = x - cx
-            val dz = z - cz
-            return if (round) dx * dx + dz * dz <= half * half else abs(dx) <= half && abs(dz) <= half
-        }
-
-        /** Distance entre (x, z) et le bord de la plateforme. */
-        fun edgeMargin(x: Float, z: Float): Float {
-            val dx = x - cx
-            val dz = z - cz
-            return if (round) half - sqrt(dx * dx + dz * dz) else half - maxOf(abs(dx), abs(dz))
-        }
-
-        fun draw(canvas: Canvas) {
-            canvas.save()
-            // Tremblement de plus en plus fort pendant l'effritement
-            var shake = 0f
-            if (crumbleT >= 0f && !collapsed) {
-                val f = (crumbleT / crumbleDur).coerceIn(0f, 1f)
-                shake = sin(time * 55f) * k * (0.015f + 0.05f * f)
-            }
-            canvas.translate(sx(cx, cz) + shake, sy(cx, 0f, cz) + dropY * k)
-            if (round) {
-                canvas.drawOval(bottomOval, leftPaint)
-                canvas.drawRect(sideRect, leftPaint)
-                canvas.drawOval(topOval, topPaint)
-            } else {
-                canvas.drawPath(leftPath, leftPaint)
-                canvas.drawPath(rightPath, rightPaint)
-                canvas.drawPath(topPath, topPaint)
-            }
-            canvas.drawOval(markOval, markPaint)
-            if (crumbly) {
-                val f = if (crumbleT < 0f) 0f else (crumbleT / crumbleDur).coerceIn(0f, 1f)
-                crackPaint.alpha = (110 + 145 * f).toInt()
-                canvas.drawPath(crackPath, crackPaint)
-            }
-            canvas.restore()
-        }
-    }
-
-
     // --- Etat ---
     internal var state = State.READY
     internal var score = 0
     internal val profile = LocalScores(context)
+    internal val missions = DailyMissions(profile) { java.time.LocalDate.now().toString() }
+
+    // Partie en cours
+    internal var runTime = 0f              // durée de la partie (s, hors pause) pour le serveur
+    internal var coinsThisRun = 0
+    internal var pendingBounce = false     // rebond automatique après un trampoline
+    internal var bounceDelay = 0f
+    internal var autoJump = false
+    internal var pausedFrom = State.READY
+    internal var missionsReturnState = State.READY
+    internal var boardTab = 0              // 0 perso, 1 semaine, 2 mondial
+    internal var pseudoConflict = false
+    internal var pendingBuy: Skins.Item? = null
+    internal val shopPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F5C542") }
+
+    // Effets
+    internal val particles = ArrayList<Particle>()
+    internal val banners = ArrayList<Banner>()
+    internal var shakeT = 0f
+    internal var shakeAmp = 0f
+    internal var shakeX = 0f
+    internal var shakeY = 0f
+    internal var skyTop = 0
+    internal var skyBottom = 0
+    internal var skyName = ""
+    internal val skyStars = List(70) { floatArrayOf(Random.nextFloat(), Random.nextFloat() * 0.75f, Random.nextFloat() * 6.28f) }
     val sounds = Sounds(context)
     internal var lastWheelIdx = -1
     internal var settingsReturnState = State.READY
@@ -203,7 +110,6 @@ class GameView(context: Context) : View(context) {
     internal var newBest = false
 
     // Classements
-    internal var boardWorld = false            // onglet : false = perso, true = mondial
     internal var boardReturnState = State.READY
     internal var worldStatus = WorldStatus.IDLE
     internal var worldEntries: List<ScoreServer.Entry> = emptyList()
@@ -239,6 +145,7 @@ class GameView(context: Context) : View(context) {
     internal var lookGlasses = Skins.NONE
     internal var lookHat = Skins.NONE
     internal var lookShoes = Skins.NONE
+    internal var lookColor = "orange"
     internal var unlockedLabels: List<String> = emptyList()
 
     // Ecran Personnage
@@ -387,8 +294,8 @@ class GameView(context: Context) : View(context) {
     // --- Projection ---
     internal fun isoX(x: Float, z: Float) = (x - z) * cos30 * k
     internal fun isoY(x: Float, y: Float, z: Float) = -(x + z) * sin30 * k - y * k
-    internal fun sx(x: Float, z: Float) = w * 0.5f - camX + isoX(x, z)
-    internal fun sy(x: Float, y: Float, z: Float) = h * 0.6f - camY + isoY(x, y, z)
+    internal fun sx(x: Float, z: Float) = w * 0.5f - camX + shakeX + isoX(x, z)
+    internal fun sy(x: Float, y: Float, z: Float) = h * 0.6f - camY + shakeY + isoY(x, y, z)
 
     /** Remplit un chemin quadrilatère à partir de 4 points 3D (en coordonnées locales projetées). */
     internal fun quad(
@@ -426,7 +333,7 @@ class GameView(context: Context) : View(context) {
 
     internal fun resetGame() {
         platforms.clear()
-        current = Platform(0f, 0f, 0.85f, false, Color.parseColor("#B0BEC5"))
+        current = Platform(this, 0f, 0f, 0.85f, false, Color.parseColor("#B0BEC5"))
         platforms.add(current)
         px = 0f
         pz = 0f
@@ -438,6 +345,11 @@ class GameView(context: Context) : View(context) {
         crumbleHintShown = false
         perfectStreak = 0
         perfectBarAlpha = 0f
+        runTime = 0f
+        coinsThisRun = 0
+        pendingBounce = false
+        autoJump = false
+        particles.clear()
         gameOverReason = null
         newBest = false
         charge = 0f
@@ -453,18 +365,43 @@ class GameView(context: Context) : View(context) {
     /** Fait apparaître une nouvelle plateforme dans la direction +x ou +z. */
     internal fun spawnNext() {
         val difficulty = min(score / 40f, 1f)
-        val half = (0.85f - 0.4f * difficulty) * (0.8f + Random.nextFloat() * 0.35f)
-        val round = Random.nextFloat() < 0.4f
-        val minDist = current.half + half + 0.45f
-        val dist = minDist + Random.nextFloat() * 2.3f
         alongX = Random.nextBoolean()
-        val color = palette[Random.nextInt(palette.size)]
-        // A partir de 25 points, de plus en plus de plateformes fragiles
-        val crumbleChance = if (score < crumbleFromScore) 0f else min(0.5f + (score - crumbleFromScore) / 50f, 0.9f)
-        val crumbly = Random.nextFloat() < crumbleChance
+        // Type de plateforme : de plus en plus de plateformes spéciales avec le score
+        val r = Random.nextFloat()
+        val trampChance = if (score >= trampolineFromScore) 0.10f else 0f
+        val miniChance = if (score >= miniFromScore) 0.09f else 0f
+        val movingChance = if (score >= movingFromScore) 0.12f else 0f
+        val crumbleChance = if (score < crumbleFromScore) 0f else min(0.45f + (score - crumbleFromScore) / 60f, 0.8f)
+        val kind = when {
+            // Après un trampoline, on rebondit automatiquement : la suivante reste simple
+            current.kind == PlatformKind.TRAMPOLINE -> PlatformKind.NORMAL
+            r < trampChance -> PlatformKind.TRAMPOLINE
+            r < trampChance + miniChance -> PlatformKind.MINI
+            r < trampChance + miniChance + movingChance -> PlatformKind.MOVING
+            Random.nextFloat() < crumbleChance -> PlatformKind.CRUMBLY
+            else -> PlatformKind.NORMAL
+        }
+        val half = if (kind == PlatformKind.MINI) 0.3f
+        else (0.85f - 0.4f * difficulty) * (0.8f + Random.nextFloat() * 0.35f)
+        val round = Random.nextFloat() < 0.4f
+        val moving = kind == PlatformKind.MOVING
+        val minDist = current.half + half + 0.45f + (if (moving) 0.8f else 0f)
+        val dist = minDist + Random.nextFloat() * (if (moving) 1.2f else 2.3f)
+        val color = if (kind == PlatformKind.MINI) Color.parseColor("#F5C542") else palette[Random.nextInt(palette.size)]
         // Le centre est aligné avec la position du personnage sur l'autre axe
-        next = if (alongX) Platform(current.cx + dist, pz, half, round, color, crumbly)
-        else Platform(px, current.cz + dist, half, round, color, crumbly)
+        next = Platform(
+            this,
+            if (alongX) current.cx + dist else px,
+            if (alongX) pz else current.cz + dist,
+            half, round, color, kind, alongX
+        )
+        // Pièces : une de temps en temps, rarement une grosse
+        val c = Random.nextFloat()
+        next.coin = when {
+            c < 0.04f -> 5
+            c < 0.30f -> 1
+            else -> 0
+        }
         platforms.add(next)
         while (platforms.size > 6) platforms.removeAt(0)
     }
@@ -531,7 +468,7 @@ class GameView(context: Context) : View(context) {
                     return true
                 }
                 when (state) {
-                    State.READY -> {
+                    State.READY -> if (!pendingBounce) {
                         state = State.CHARGING
                         charge = 0f
                     }
@@ -548,14 +485,87 @@ class GameView(context: Context) : View(context) {
         return true
     }
 
+    /** Vibration, si elle n'est pas désactivée dans les réglages. */
+    internal fun vibrate(type: Int) {
+        if (profile.vibrationOn) performHapticFeedback(type)
+    }
+
+    /** Fait avancer les missions du jour et crédite les pièces gagnées. */
+    internal fun missionEvent(type: MissionType, amount: Int = 1) {
+        val r = missions.record(type, amount)
+        if (r.coins <= 0) return
+        profile.coins += r.coins
+        for (m in r.completed) {
+            banners += Banner((if (m.challenge) "🏅 Défi du jour réussi ! +" else "✅ Mission réussie ! +") + "${m.reward} 🪙", 3f)
+        }
+        if (r.allDoneBonus) banners += Banner("🎉 Missions du jour terminées : +${DailyMissions.ALL_DONE_REWARD} 🪙", 3.2f)
+        sounds.play(Sounds.Sfx.UNLOCK)
+    }
+
+    /** Ramasse la pièce posée sur la plateforme. */
+    internal fun collectCoin(p: Platform) {
+        val n = p.coin
+        p.coin = 0
+        coinsThisRun += n
+        profile.coins += n
+        val x = sx(p.cx, p.cz) + camX
+        val y = sy(p.cx, 0.55f, p.cz) + camY
+        spawnSparkles(x, y, Color.parseColor("#FFC93C"), if (n > 1) 22 else 12)
+        popups.add(Popup("+$n 🪙", x, y - k * 0.4f, 0.9f))
+        sounds.play(Sounds.Sfx.COIN)
+        missionEvent(MissionType.COINS, n)
+    }
+
+    /** Parties en cours où l'on peut mettre en pause. */
+    internal fun canPause() = when (state) {
+        State.READY -> jumps > 0 || score > 0
+        State.JUMPING, State.CHARGING, State.BONUS -> true
+        else -> false
+    }
+
+    internal fun pauseGame() {
+        if (!canPause()) return
+        if (state == State.CHARGING) {
+            state = State.READY
+            charge = 0f
+        }
+        pausedFrom = state
+        state = State.PAUSED
+    }
+
+    internal fun resumeGame() {
+        state = pausedFrom
+        lastFrameNs = 0L
+    }
+
+    /** Appelé quand l'appli passe en arrière-plan. */
+    fun onHostPause() = pauseGame()
+
+    /** Rebond automatique d'un trampoline vers le centre de la plateforme suivante. */
+    internal fun startAutoJump() {
+        jumpFrom = if (alongX) px else pz
+        jumpDist = (if (alongX) next.cx else next.cz) - jumpFrom
+        jumpDuration = 0.85f
+        jumpHeight = 2.6f
+        jumpT = 0f
+        jumpTrick = JumpTrick.DOUBLE_FLIP
+        autoJump = true
+        current.bounce = 1f
+        sounds.play(Sounds.Sfx.JUMP, 1f, 1.4f)
+        state = State.JUMPING
+    }
+
     /** Le personnage rate : chute avec une animation choisie au hasard. */
     internal fun startFall() {
         fallVy = 0f
         fallT = 0f
         fallAnim = FallAnim.values()[Random.nextInt(FallAnim.values().size)]
         perfectStreak = 0
+        pendingBounce = false
+        autoJump = false
         sounds.play(Sounds.Sfx.FALL)
-        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        vibrate(HapticFeedbackConstants.LONG_PRESS)
+        shake(0.06f)
         state = State.FALLING
     }
 
@@ -564,6 +574,9 @@ class GameView(context: Context) : View(context) {
         gameOverTime = 0f
         gameOverReason = reason
         val before = profile.totalPoints
+        profile.queueRun(score, runTime, jumps)
+        missionEvent(MissionType.GAMES)
+        missionEvent(MissionType.SCORE, score)
         newBest = profile.addRun(score)
         unlockedLabels = Skins.unlockedBetween(before, profile.totalPoints).map { it.label }
         val unlocked = unlockedLabels.isNotEmpty()
@@ -590,7 +603,7 @@ class GameView(context: Context) : View(context) {
         if (p.edgeMargin(px, pz) >= scareMargin) return false
         scareT = scareDuration
         sounds.play(Sounds.Sfx.SCARE)
-        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        vibrate(HapticFeedbackConstants.LONG_PRESS)
         return true
     }
 
@@ -609,7 +622,20 @@ class GameView(context: Context) : View(context) {
     }
 
     internal fun update(dt: Float) {
+        // En pause (ou réglages ouverts depuis la pause) : tout est figé
+        if (state == State.PAUSED || (state == State.SETTINGS && settingsReturnState == State.PAUSED)) return
         time += dt
+        updateEffects(dt)
+        for (p in platforms) p.update(dt)
+        if (state == State.CHARGING || state == State.JUMPING || state == State.FALLING || state == State.BONUS ||
+            (state == State.READY && jumps > 0)) runTime += dt
+        if (state == State.READY && pendingBounce) {
+            bounceDelay -= dt
+            if (bounceDelay <= 0f) {
+                pendingBounce = false
+                startAutoJump()
+            }
+        }
         if (landSquash > 0f) landSquash = (landSquash - dt * 4f).coerceAtLeast(0f)
 
         // Caméra qui glisse doucement vers sa cible
@@ -622,7 +648,8 @@ class GameView(context: Context) : View(context) {
         perfectBarAlpha += (barTarget - perfectBarAlpha) * min(1f, dt * 8f)
 
         // Plateformes fragiles (en pause pendant le bonus et après la partie)
-        if (state != State.BONUS && state != State.GAME_OVER && state != State.LEADERBOARD && state != State.CUSTOMIZE && state != State.SETTINGS) {
+        if (state != State.BONUS && state != State.GAME_OVER && state != State.LEADERBOARD && state != State.CUSTOMIZE && state != State.SETTINGS &&
+            state != State.MISSIONS) {
             for (p in platforms) {
                 if (p.collapsed) {
                     p.dropV += 30f * dt
@@ -633,6 +660,8 @@ class GameView(context: Context) : View(context) {
                         p.dropY = 0.001f
                         p.dropV = 0f
                         sounds.play(Sounds.Sfx.CRUMBLE, 0.9f)
+                        spawnDebris(p)
+                        shake(0.08f)
                         val standing = (state == State.READY || state == State.CHARGING) && p === current
                         if (standing) {
                             gameOverReason = "La plateforme s'est effondrée !"
@@ -677,7 +706,7 @@ class GameView(context: Context) : View(context) {
 
             State.GAME_OVER -> gameOverTime += dt
             State.CUSTOMIZE -> if (custMsgT > 0f) custMsgT -= dt
-            State.READY, State.LEADERBOARD, State.SETTINGS -> {}
+            State.READY, State.LEADERBOARD, State.SETTINGS, State.PAUSED, State.MISSIONS -> {}
         }
 
         val it = popups.iterator()
@@ -689,51 +718,77 @@ class GameView(context: Context) : View(context) {
         }
     }
 
-    /** Points d'un saut : 1, puis +2, +3, +4 et +5 max à partir du 3e parfait d'affilée. */
-    internal fun perfectPoints(streak: Int) = if (streak >= 3) min(streak - 1, 5) else 1
-
     internal fun land() {
         py = 0f
         when {
             next.contains(px, pz) -> {
+                val wasAuto = autoJump
+                autoJump = false
                 jumps++
                 landSquash = 1f
-                val scared = checkScare(next)
-                val perfect = !scared && abs(px - next.cx) < 0.13f && abs(pz - next.cz) < 0.13f
-                perfectStreak = if (perfect) perfectStreak + 1 else 0
-                val points = perfectPoints(perfectStreak)
+                next.frozen = true
+                val scared = !wasAuto && checkScare(next)
+                val perfect = !wasAuto && !scared && abs(px - next.cx) < 0.13f && abs(pz - next.cz) < 0.13f
+                if (!wasAuto) perfectStreak = if (perfect) perfectStreak + 1 else 0
+                var points = if (perfect) Scoring.perfectPoints(perfectStreak) else 1
                 if (perfect && perfectStreak >= 3) {
                     perfectPulse = 1f
                     lastPerfectPoints = points
                     shownStreak = perfectStreak
                 }
+                if (next.kind == PlatformKind.MINI) points += Scoring.MINI_BONUS
                 score += points
                 popups.add(
                     Popup(
-                        if (perfect) "Parfait ! +$points" else "+1",
+                        if (perfect) "Parfait ! +$points" else "+$points",
                         sx(px, pz) + camX, sy(px, playerHeight * 2.2f, pz) + camY, 0.8f
                     )
                 )
-                if (!scared) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                spawnDust(px, pz)
+                if (perfect) spawnSparkles(sx(px, pz) + camX, sy(px, 0.3f, pz) + camY, Color.parseColor("#FFD54F"), 16)
+                if (!scared) vibrate(HapticFeedbackConstants.VIRTUAL_KEY)
                 when {
                     perfect -> sounds.play(Sounds.Sfx.PERFECT)
                     // « Great » de temps en temps (environ 1 saut sur 5)
                     !scared && Random.nextInt(5) == 0 && sounds.has(Sounds.Sfx.GREAT) -> sounds.play(Sounds.Sfx.GREAT)
                     else -> sounds.play(Sounds.Sfx.LAND)
                 }
+                if (next.coin > 0) collectCoin(next)
+                missionEvent(MissionType.JUMPS)
+                if (perfect) {
+                    missionEvent(MissionType.PERFECTS)
+                    missionEvent(MissionType.STREAK, perfectStreak)
+                }
+                if (scared) missionEvent(MissionType.SCARES)
+                missionEvent(MissionType.SCORE, score)
                 current = next
                 spawnNext()
                 updateCameraTarget()
                 startCrumble(current)
+                if (current.kind == PlatformKind.TRAMPOLINE) {
+                    // Boing ! Rebond automatique vers la plateforme suivante
+                    pendingBounce = true
+                    bounceDelay = 0.3f
+                    current.bounce = 1f
+                    popups.add(Popup("Boing !", sx(px, pz) + camX, sy(px, playerHeight * 3.4f, pz) + camY, 0.9f))
+                    missionEvent(MissionType.TRAMPOLINES)
+                }
                 if (jumps % bonusEvery == 0) startBonus() else state = State.READY
             }
             current.contains(px, pz) -> {
                 // Saut trop court mais on reste sur sa plateforme : pas de point, la série s'arrête.
                 landSquash = 1f
                 perfectStreak = 0
+                autoJump = false
                 sounds.play(Sounds.Sfx.LAND, 0.8f)
+                spawnDust(px, pz)
                 checkScare(current)
                 startCrumble(current)
+                if (current.kind == PlatformKind.TRAMPOLINE) {
+                    pendingBounce = true
+                    bounceDelay = 0.3f
+                    current.bounce = 1f
+                }
                 state = State.READY
             }
             else -> startFall()
@@ -746,7 +801,7 @@ class GameView(context: Context) : View(context) {
         lastFrameNs = now
         update(dt)
 
-        canvas.drawRect(0f, 0f, w, h, bgPaint)
+        drawSky(canvas)
 
         // Affichage du plus lointain au plus proche, le personnage inséré au bon endroit
         drawOrder.clear()
@@ -762,6 +817,7 @@ class GameView(context: Context) : View(context) {
             p.draw(canvas)
         }
         if (!playerDrawn) drawPlayer(canvas)
+        drawParticles(canvas)
 
         // Jauge de charge
         if (state == State.CHARGING) {
@@ -788,9 +844,17 @@ class GameView(context: Context) : View(context) {
         // Score en haut et en gros
         canvas.drawText(score.toString(), w / 2f, insetTop + h * 0.17f, scorePaint)
         textPaint.textSize = w * 0.045f
-        canvas.drawText("Record : $best", w / 2f, insetTop + h * 0.17f + w * 0.08f, textPaint)
+        canvas.drawText("Record : $best   🪙 ${profile.coins}", w / 2f, insetTop + h * 0.17f + w * 0.08f, textPaint)
+        drawBanners(canvas)
 
         buttons.clear()
+
+        // Bouton pause pendant la partie
+        if (canPause() && state != State.BONUS) {
+            val ps = w * 0.11f
+            val top = insetTop + w * 0.04f
+            drawButton(canvas, RectF(w * 0.97f - ps, top, w * 0.97f, top + ps), "⏸", chipPaint, w * 0.05f) { pauseGame() }
+        }
 
         if (state == State.READY && score == 0) {
             textPaint.textSize = w * 0.05f
@@ -805,9 +869,13 @@ class GameView(context: Context) : View(context) {
                 askPseudo(first = false)
             }
             drawButton(canvas, RectF(w * 0.67f, top, w * 0.97f, top + ch), "🏆 Classement", chipPaint, w * 0.036f) {
-                openBoard(world = false)
+                openBoard(0)
             }
             val ty = top + ch + w * 0.025f
+            val doneCount = missions.list().indices.count { missions.isDone(it) }
+            drawButton(canvas, RectF(w * 0.67f, ty, w * 0.97f, ty + ch), "📋 Missions $doneCount/4", chipPaint, w * 0.034f) {
+                openMissions()
+            }
             drawButton(canvas, RectF(w * 0.03f, ty, w * 0.33f, ty + ch),
                 (if (sounds.soundVolume > 0f || sounds.musicVolume > 0f) "🔊" else "🔇") + " Son", chipPaint, w * 0.036f) {
                 openSettings()
@@ -828,6 +896,8 @@ class GameView(context: Context) : View(context) {
         if (state == State.GAME_OVER) drawGameOver(canvas)
         if (state == State.LEADERBOARD) drawLeaderboard(canvas)
         if (state == State.CUSTOMIZE) drawCustomize(canvas)
+        if (state == State.PAUSED) drawPause(canvas)
+        if (state == State.MISSIONS) drawMissions(canvas)
         if (state == State.SETTINGS) drawSettings(canvas)
 
         postInvalidateOnAnimation()

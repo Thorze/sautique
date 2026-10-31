@@ -26,6 +26,21 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
   chaque parfait suivant rapporte plus (+2, +3, +4, puis +5). Un atterrissage non parfait
   arrête la série.
 - Atterrir tout au bord fait **trembler** le personnage, avec un « ! » de frayeur.
+- **Plateformes spéciales** : trampolines (dès 8 points, rebond automatique avec double
+  salto), mini-plateformes (+2 points, dès 15), plateformes mobiles (dès 20).
+- **Pièces** à ramasser sur les plateformes (grosse pièce = 5) : elles servent à acheter des
+  éléments exclusifs dans l'écran Personnage (lunettes pixel, monocle, chapeaux magicien /
+  viking / auréole, chaussures fusées, couleurs arc-en-ciel et galaxie).
+- **Missions du jour** (3 missions + 1 défi, nouvelles chaque jour) qui rapportent des pièces,
+  +50 pièces si les 3 missions sont terminées.
+- **Décor évolutif** : matin, journée, coucher de soleil, nuit étoilée, aurore puis espace au
+  fil du score.
+- **Effets** : poussière à l'atterrissage, étincelles sur les parfaits et les pièces, débris
+  et secousse quand une plateforme s'effondre.
+- **Pause** pendant la partie (et automatiquement quand on quitte l'appli), vibrations
+  désactivables.
+- **Classements** : perso, de la semaine et de tous les temps. Les pseudos sont uniques et le
+  serveur refuse les scores impossibles.
 - Les plateformes (cubes ou cylindres) rétrécissent au fil des points et apparaissent
   tantôt vers la droite, tantôt vers la gauche.
 
@@ -127,4 +142,19 @@ Avec le SDK Android installé (ou Android Studio) :
 
 L'APK se trouve dans `app/build/outputs/apk/debug/app-debug.apk`.
 
-Le code du jeu est dans `app/src/main/java/com/sautique/game/GameView.kt`.
+## Organisation du code
+
+`app/src/main/java/com/sautique/game/` :
+
+| Fichier | Rôle |
+|---|---|
+| `GameView.kt` | boucle de jeu, sauts, atterrissages, plateformes |
+| `Platform.kt` | plateformes (normale, fragile, trampoline, mini, mobile) et pièces |
+| `Character.kt` | dessin du personnage, accessoires, animations |
+| `Bonus.kt` | niveaux bonus |
+| `Screens.kt` | écrans : classement, personnage, missions, pause, son, fin de partie |
+| `Effects.kt` | particules, secousses, ciel évolutif |
+| `Missions.kt`, `Theme.kt`, `Scoring.kt`, `Skins.kt` | règles du jeu, testées |
+| `LocalScores.kt`, `ScoreServer.kt`, `Sounds.kt`, `Updater.kt` | sauvegarde, serveur, sons, mises à jour |
+
+Tests : `./gradlew testDebugUnitTest` (app) et `cd server && python3 -m unittest test_server`.

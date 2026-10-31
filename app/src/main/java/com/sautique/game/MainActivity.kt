@@ -24,6 +24,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         game.sounds.pauseMusic()
+        game.onHostPause()
     }
 
     override fun onDestroy() {
