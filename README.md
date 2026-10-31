@@ -10,6 +10,33 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
 - Les plateformes (cubes ou cylindres) rétrécissent au fil des points et apparaissent
   tantôt vers la droite, tantôt vers la gauche.
 
+## Pseudo et classements
+
+- Au premier lancement, le jeu demande un **pseudo** (modifiable ensuite via le bouton ✎).
+- **Top perso** : tes 10 meilleures parties, gardées sur le téléphone.
+- **Top mondial** : le meilleur score de chaque joueur, partagé entre tous les téléphones,
+  avec ta place au classement.
+
+### Activer le top mondial (une seule fois)
+
+Le classement mondial utilise [Supabase](https://supabase.com) (gratuit) :
+
+1. Crée un compte puis un projet sur supabase.com.
+2. Dans le projet : **SQL Editor** > **New query**, colle le contenu de
+   `supabase/schema.sql`, puis **Run**.
+3. Dans **Project Settings** > **API Keys** (ou **Data API**), récupère l'**URL du projet**
+   (`https://xxxx.supabase.co`) et la clé publique (**publishable** ou **anon**).
+   N'utilise jamais la clé *secret* / *service_role*.
+4. Sur GitHub : **Settings** > **Secrets and variables** > **Actions** > **New repository secret**,
+   crée `SUPABASE_URL` et `SUPABASE_ANON_KEY` avec ces deux valeurs.
+5. Relance le workflow **Build APK** (onglet Actions > Run workflow) et installe le nouvel APK.
+
+Tant que ce n'est pas configuré, le jeu marche normalement et le top mondial
+affiche « Classement mondial non configuré ».
+
+En local, tu peux aussi les mettre dans `~/.gradle/gradle.properties` :
+`SUPABASE_URL=...` et `SUPABASE_ANON_KEY=...`.
+
 ## Récupérer l'APK
 
 Chaque push lance le workflow GitHub Actions **Build APK**. Ouvre l'onglet

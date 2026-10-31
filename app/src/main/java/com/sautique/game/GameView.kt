@@ -29,7 +29,11 @@ import kotlin.random.Random
  */
 class GameView(context: Context) : View(context) {
 
-    private enum class State { READY, CHARGING, JUMPING, FALLING, GAME_OVER }
+    private enum class State { READY, CHARGING, JUMPING, FALLING, GAME_OVER, LEADERBOARD }
+    private enum class WorldStatus { IDLE, LOADING, OK, ERROR, NOT_CONFIGURED }
+
+    /** Bouton dessiné sur le canvas. */
+    private class Button(val rect: RectF, val action: () -> Unit)
 
     private val cos30 = 0.8660254f
     private val sin30 = 0.5f
@@ -122,9 +126,22 @@ class GameView(context: Context) : View(context) {
     // --- Etat ---
     private var state = State.READY
     private var score = 0
-    private val prefs = context.getSharedPreferences("sautique", Context.MODE_PRIVATE)
-    private var best = prefs.getInt("best", 0)
+    private val profile = LocalScores(context)
+    private val online = OnlineLeaderboard(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY)
+    private var best = profile.best
     private var newBest = false
+
+    // Classements
+    private var boardWorld = false            // onglet : false = perso, true = mondial
+    private var boardReturnState = State.READY
+    private var worldStatus = WorldStatus.IDLE
+    private var worldEntries: List<OnlineLeaderboard.Entry> = emptyList()
+    private var worldRank: Int? = null
+    private var personalRuns: List<LocalScores.Run> = emptyList()
+    private var syncing = false
+    private var pseudoDialogShown = false
+    private val buttons = ArrayList<Button>()
+    private val dateFormat = java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.FRANCE)
 
     private val platforms = ArrayList<Platform>()
     private val drawOrder = ArrayList<Platform>()
@@ -183,6 +200,26 @@ class GameView(context: Context) : View(context) {
         textAlign = Paint.Align.CENTER
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         setShadowLayer(6f, 0f, 3f, Color.argb(90, 0, 0, 0))
+    }
+    private val primaryBtnPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FF7A45") }
+    private val secondaryBtnPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(60, 255, 255, 255) }
+    private val chipPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(70, 0, 0, 0) }
+    private val panelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FAFAFA") }
+    private val tabOnPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#2E3A59") }
+    private val tabOffPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E3E7EE") }
+    private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FFE0D1") }
+    private val btnTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+    private val darkTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#2E3A59")
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+    private val greyTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#7A869A")
+        textAlign = Paint.Align.CENTER
     }
     private val rect = RectF()
     private val tmpPath = Path()
@@ -268,15 +305,107 @@ class GameView(context: Context) : View(context) {
         camTargetY = isoY(mx, 0f, mz)
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (profile.pseudo.isNullOrBlank()) {
+            post { askPseudo(first = true) }
+        } else {
+            syncOnline()
+        }
+    }
+
+    /** Fenêtre de saisie du pseudo. */
+    private fun askPseudo(first: Boolean) {
+        if (pseudoDialogShown) return
+        pseudoDialogShown = true
+        val input = android.widget.EditText(context).apply {
+            setText(profile.pseudo ?: "")
+            hint = "Ton pseudo"
+            setSingleLine()
+            filters = arrayOf(android.text.InputFilter.LengthFilter(16))
+            setSelection(text.length)
+        }
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        val container = android.widget.FrameLayout(context).apply {
+            setPadding(pad, pad / 2, pad, 0)
+            addView(input)
+        }
+        android.app.AlertDialog.Builder(context)
+            .setTitle(if (first) "Choisis ton pseudo" else "Changer de pseudo")
+            .setMessage("Il apparaîtra dans le classement mondial.")
+            .setView(container)
+            .setCancelable(!first)
+            .setPositiveButton("OK") { _, _ ->
+                val p = input.text.toString().trim()
+                when {
+                    p.isNotEmpty() -> profile.pseudo = p
+                    profile.pseudo.isNullOrBlank() -> profile.pseudo = "Joueur" + Random.nextInt(1000, 10000)
+                }
+                syncOnline()
+            }
+            .apply { if (!first) setNegativeButton("Annuler", null) }
+            .setOnDismissListener { pseudoDialogShown = false }
+            .show()
+    }
+
+    /** Envoie le record et le pseudo au classement mondial si besoin. */
+    private fun syncOnline() {
+        val pseudo = profile.pseudo
+        if (syncing || !online.configured || pseudo.isNullOrBlank() || !profile.needsSync()) return
+        syncing = true
+        val sentBest = profile.best
+        online.submit(profile.playerId, pseudo, sentBest) { ok ->
+            syncing = false
+            if (ok) {
+                profile.syncedBest = sentBest
+                profile.syncedPseudo = pseudo
+                if (state == State.LEADERBOARD && boardWorld) loadWorld()
+                // Le pseudo ou le record a pu changer pendant l'envoi
+                if (profile.needsSync()) syncOnline()
+            }
+        }
+    }
+
+    private fun openBoard(world: Boolean) {
+        if (state != State.LEADERBOARD) boardReturnState = state
+        state = State.LEADERBOARD
+        boardWorld = world
+        personalRuns = profile.topRuns()
+        if (world) loadWorld()
+    }
+
+    private fun loadWorld() {
+        if (!online.configured) {
+            worldStatus = WorldStatus.NOT_CONFIGURED
+            return
+        }
+        worldStatus = WorldStatus.LOADING
+        worldRank = null
+        online.fetchTop(10) { list ->
+            if (list == null) {
+                worldStatus = WorldStatus.ERROR
+            } else {
+                worldEntries = list
+                worldStatus = WorldStatus.OK
+            }
+        }
+        if (best > 0) online.fetchRank(best) { worldRank = it }
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                // Les boutons affichés passent avant le saut
+                val hit = buttons.firstOrNull { it.rect.contains(event.x, event.y) }
+                if (hit != null) {
+                    hit.action()
+                    return true
+                }
                 when (state) {
                     State.READY -> {
                         state = State.CHARGING
                         charge = 0f
                     }
-                    State.GAME_OVER -> if (gameOverTime > 0.6f) resetGame()
                     else -> {}
                 }
             }
@@ -324,16 +453,14 @@ class GameView(context: Context) : View(context) {
                 if (sy(px, py + playerHeight, pz) > h) {
                     state = State.GAME_OVER
                     gameOverTime = 0f
-                    if (score > best) {
-                        best = score
-                        newBest = true
-                        prefs.edit().putInt("best", best).apply()
-                    }
+                    newBest = profile.addRun(score)
+                    best = profile.best
+                    syncOnline()
                 }
             }
 
             State.GAME_OVER -> gameOverTime += dt
-            State.READY -> {}
+            State.READY, State.LEADERBOARD -> {}
         }
 
         val it = popups.iterator()
@@ -427,16 +554,134 @@ class GameView(context: Context) : View(context) {
         textPaint.textSize = w * 0.045f
         canvas.drawText("Record : $best", w / 2f, h * 0.17f + w * 0.08f, textPaint)
 
+        buttons.clear()
+
         if (state == State.READY && score == 0) {
             textPaint.textSize = w * 0.05f
             canvas.drawText("Maintiens appuyé pour sauter", w / 2f, h * 0.88f, textPaint)
             textPaint.textSize = w * 0.04f
             canvas.drawText("plus longtemps = plus loin", w / 2f, h * 0.88f + w * 0.07f, textPaint)
+
+            // Raccourcis en haut : pseudo à gauche, classement à droite
+            val ch = w * 0.085f
+            val top = w * 0.04f
+            drawButton(canvas, RectF(w * 0.03f, top, w * 0.33f, top + ch), "✎ " + (profile.pseudo ?: "Pseudo"), chipPaint, w * 0.036f) {
+                askPseudo(first = false)
+            }
+            drawButton(canvas, RectF(w * 0.67f, top, w * 0.97f, top + ch), "🏆 Classement", chipPaint, w * 0.036f) {
+                openBoard(world = false)
+            }
         }
 
         if (state == State.GAME_OVER) drawGameOver(canvas)
+        if (state == State.LEADERBOARD) drawLeaderboard(canvas)
 
         postInvalidateOnAnimation()
+    }
+
+    /** Dessine un bouton arrondi et l'enregistre pour la détection des appuis. */
+    private fun drawButton(canvas: Canvas, r: RectF, label: String, bg: Paint, textSize: Float, action: () -> Unit) {
+        val radius = r.height() / 2f
+        canvas.drawRoundRect(r, radius, radius, bg)
+        btnTextPaint.textSize = textSize
+        btnTextPaint.color = if (bg === tabOffPaint) Color.parseColor("#2E3A59") else Color.WHITE
+        val label2 = ellipsize(label, btnTextPaint, r.width() - radius)
+        canvas.drawText(label2, r.centerX(), r.centerY() - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2f, btnTextPaint)
+        buttons.add(Button(RectF(r), action))
+    }
+
+    private fun ellipsize(text: String, paint: Paint, maxWidth: Float): String {
+        if (paint.measureText(text) <= maxWidth) return text
+        var t = text
+        while (t.length > 1 && paint.measureText("$t…") > maxWidth) t = t.dropLast(1)
+        return "$t…"
+    }
+
+    private fun drawLeaderboard(canvas: Canvas) {
+        canvas.drawRect(0f, 0f, w, h, overlayPaint)
+        val left = w * 0.06f
+        val right = w * 0.94f
+        val top = h * 0.08f
+        val bottom = h * 0.92f
+        rect.set(left, top, right, bottom)
+        canvas.drawRoundRect(rect, w * 0.05f, w * 0.05f, panelPaint)
+
+        // Titre
+        darkTextPaint.textAlign = Paint.Align.CENTER
+        darkTextPaint.textSize = w * 0.075f
+        canvas.drawText("Classement", w / 2f, top + w * 0.12f, darkTextPaint)
+
+        // Onglets
+        val tabTop = top + w * 0.17f
+        val tabH = w * 0.1f
+        val mid = w / 2f
+        drawButton(canvas, RectF(left + w * 0.05f, tabTop, mid - w * 0.01f, tabTop + tabH), "Top perso",
+            if (!boardWorld) tabOnPaint else tabOffPaint, w * 0.042f) { openBoard(world = false) }
+        drawButton(canvas, RectF(mid + w * 0.01f, tabTop, right - w * 0.05f, tabTop + tabH), "Top mondial",
+            if (boardWorld) tabOnPaint else tabOffPaint, w * 0.042f) { openBoard(world = true) }
+
+        // Lignes
+        val listTop = tabTop + tabH + w * 0.06f
+        val footer = bottom - w * 0.2f
+        val rowH = (footer - w * 0.08f - listTop) / LocalScores.MAX_RUNS
+        val rowText = min(w * 0.048f, rowH * 0.5f)
+        darkTextPaint.textSize = rowText
+        greyTextPaint.textSize = w * 0.045f
+        val colRank = left + w * 0.06f
+        val colName = left + w * 0.17f
+        val colScore = right - w * 0.06f
+        val centerY = (listTop + footer) / 2f
+
+        fun row(i: Int, name: String, value: String, mine: Boolean) {
+            val y = listTop + rowH * i
+            if (mine) {
+                rect.set(left + w * 0.03f, y, right - w * 0.03f, y + rowH * 0.92f)
+                canvas.drawRoundRect(rect, rowH * 0.3f, rowH * 0.3f, highlightPaint)
+            }
+            val ty = y + rowH * 0.46f - (darkTextPaint.descent() + darkTextPaint.ascent()) / 2f
+            darkTextPaint.textAlign = Paint.Align.LEFT
+            canvas.drawText("${i + 1}.", colRank, ty, darkTextPaint)
+            canvas.drawText(ellipsize(name, darkTextPaint, colScore - colName - w * 0.15f), colName, ty, darkTextPaint)
+            darkTextPaint.textAlign = Paint.Align.RIGHT
+            canvas.drawText(value, colScore, ty, darkTextPaint)
+        }
+
+        if (!boardWorld) {
+            if (personalRuns.isEmpty()) {
+                canvas.drawText("Pas encore de partie.", w / 2f, centerY, greyTextPaint)
+            } else {
+                personalRuns.forEachIndexed { i, r -> row(i, dateFormat.format(java.util.Date(r.time)), r.score.toString(), false) }
+            }
+            greyTextPaint.textSize = w * 0.04f
+            canvas.drawText("Record : $best", w / 2f, footer, greyTextPaint)
+        } else {
+            when (worldStatus) {
+                WorldStatus.LOADING, WorldStatus.IDLE ->
+                    canvas.drawText("Chargement…", w / 2f, centerY, greyTextPaint)
+                WorldStatus.ERROR -> {
+                    canvas.drawText("Impossible de charger le classement.", w / 2f, centerY, greyTextPaint)
+                    canvas.drawText("Vérifie ta connexion.", w / 2f, centerY + w * 0.07f, greyTextPaint)
+                }
+                WorldStatus.NOT_CONFIGURED ->
+                    canvas.drawText("Classement mondial non configuré.", w / 2f, centerY, greyTextPaint)
+                WorldStatus.OK -> {
+                    if (worldEntries.isEmpty()) canvas.drawText("Aucun score pour l'instant.", w / 2f, centerY, greyTextPaint)
+                    worldEntries.forEachIndexed { i, e -> row(i, e.pseudo, e.best.toString(), e.id == profile.playerId) }
+                }
+            }
+            greyTextPaint.textSize = w * 0.04f
+            val rank = worldRank
+            val info = when {
+                best <= 0 -> "Joue une partie pour entrer au classement !"
+                rank != null -> "${profile.pseudo ?: ""} : place n°$rank  (record $best)"
+                else -> "Ton record : $best"
+            }
+            canvas.drawText(ellipsize(info, greyTextPaint, right - left - w * 0.06f), w / 2f, footer, greyTextPaint)
+        }
+
+        // Retour
+        drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.15f, w * 0.7f, bottom - w * 0.05f), "Retour",
+            primaryBtnPaint, w * 0.045f) { state = boardReturnState }
     }
 
     private fun drawPlayer(canvas: Canvas) {
@@ -508,17 +753,30 @@ class GameView(context: Context) : View(context) {
 
     private fun drawGameOver(canvas: Canvas) {
         canvas.drawRect(0f, 0f, w, h, overlayPaint)
+        val y0 = h * 0.34f
         textPaint.textSize = w * 0.12f
-        canvas.drawText("Perdu !", w / 2f, h * 0.38f, textPaint)
+        canvas.drawText("Perdu !", w / 2f, y0, textPaint)
         textPaint.textSize = w * 0.07f
-        canvas.drawText("Score : $score", w / 2f, h * 0.38f + w * 0.14f, textPaint)
+        canvas.drawText("Score : $score", w / 2f, y0 + w * 0.14f, textPaint)
         canvas.drawText(
             if (newBest) "Nouveau record !" else "Record : $best",
-            w / 2f, h * 0.38f + w * 0.24f, textPaint
+            w / 2f, y0 + w * 0.24f, textPaint
         )
         if (gameOverTime > 0.6f) {
-            textPaint.textSize = w * 0.05f
-            canvas.drawText("Touchez pour rejouer", w / 2f, h * 0.38f + w * 0.40f, textPaint)
+            val bh = w * 0.13f
+            var y = y0 + w * 0.34f
+            drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + bh), "Rejouer", primaryBtnPaint, w * 0.06f) { resetGame() }
+            y += bh + w * 0.04f
+            val sh = w * 0.11f
+            drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), "Top perso", secondaryBtnPaint, w * 0.045f) {
+                openBoard(world = false)
+            }
+            drawButton(canvas, RectF(w * 0.51f, y, w * 0.9f, y + sh), "Top mondial", secondaryBtnPaint, w * 0.045f) {
+                openBoard(world = true)
+            }
+            y += sh + w * 0.04f
+            drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + sh), "✎ Pseudo : " + (profile.pseudo ?: "?"),
+                chipPaint, w * 0.04f) { askPseudo(first = false) }
         }
     }
 }
