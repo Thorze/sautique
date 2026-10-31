@@ -14,6 +14,8 @@ import android.view.MotionEvent
 import android.view.View
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 /**
@@ -29,7 +31,7 @@ import kotlin.random.Random
  */
 class GameView(context: Context) : View(context) {
 
-    private enum class State { READY, CHARGING, JUMPING, FALLING, GAME_OVER, LEADERBOARD }
+    private enum class State { READY, CHARGING, JUMPING, FALLING, BONUS, GAME_OVER, LEADERBOARD }
     private enum class WorldStatus { IDLE, LOADING, OK, ERROR, NOT_CONFIGURED }
 
     /** Bouton dessiné sur le canvas. */
@@ -45,6 +47,18 @@ class GameView(context: Context) : View(context) {
     private val playerHalf = 0.24f     // demi-largeur du cube personnage
     private val playerHeight = 0.55f
 
+    // Niveau bonus
+    private val bonusEvery = 10        // un bonus tous les 10 sauts réussis
+    private val bonusReward = 5        // points gagnés si on réussit le bonus
+    private val bonusIntro = 1.0f      // temps avant que le curseur parte (évite un appui involontaire)
+
+    // Plateformes fragiles
+    private val crumbleFromScore = 25
+
+    // Frayeur quand on atterrit tout au bord
+    private val scareMargin = 0.12f    // distance au bord (unités) en dessous de laquelle il a peur
+    private val scareDuration = 1.2f
+
     private val palette = intArrayOf(
         Color.parseColor("#FF8A65"), Color.parseColor("#4DB6AC"), Color.parseColor("#FFD54F"),
         Color.parseColor("#9575CD"), Color.parseColor("#81C784"), Color.parseColor("#F06292"),
@@ -53,8 +67,25 @@ class GameView(context: Context) : View(context) {
 
     /** Une plateforme : un bloc carré ou un cylindre, centré en (cx, cz), dessus à y = 0. */
     private inner class Platform(
-        val cx: Float, val cz: Float, val half: Float, val round: Boolean, color: Int
+        val cx: Float, val cz: Float, val half: Float, val round: Boolean, color: Int,
+        val crumbly: Boolean = false
     ) {
+        /** Temps écoulé depuis le début de l'effritement (négatif = pas commencé). */
+        var crumbleT = -1f
+        var crumbleDur = 2f
+        /** Chute de la plateforme une fois effondrée (unités vers le bas). */
+        var dropY = 0f
+        var dropV = 0f
+        val collapsed get() = dropY > 0f
+        private val crackPath = Path()
+        private val crackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = k * 0.035f
+            strokeJoin = Paint.Join.ROUND
+            strokeCap = Paint.Cap.ROUND
+            this.color = Color.rgb(60, 45, 40)
+        }
+
         /** Profondeur du point le plus éloigné (plus grand x + z) : sert au tri d'affichage. */
         val farDepth = if (round) cx + cz + half * 1.4142135f else cx + cz + 2f * half
 
@@ -94,19 +125,50 @@ class GameView(context: Context) : View(context) {
                 // face visible côté x min (en bas à gauche)
                 quad(leftPath, -a, 0f, a, -a, 0f, -a, -a, -d, -a, -a, -d, a)
             }
+            if (crumbly) {
+                // Fissures en zigzag qui partent du centre
+                repeat(4) { i ->
+                    val angle = (i + Random.nextFloat() * 0.6f) * (Math.PI.toFloat() / 2f)
+                    crackPath.moveTo(0f, 0f)
+                    var r = 0f
+                    var a2 = angle
+                    while (r < half * 0.8f) {
+                        r += half * (0.18f + Random.nextFloat() * 0.12f)
+                        a2 += (Random.nextFloat() - 0.5f) * 0.9f
+                        val rr = min(r, half * 0.85f)
+                        val dx = kotlin.math.cos(a2) * rr
+                        val dz = sin(a2) * rr
+                        crackPath.lineTo(isoX(dx, dz), isoY(dx, 0f, dz))
+                    }
+                }
+            }
             val m = 0.13f
             markOval.set(-1.2247449f * k * m, -0.70710677f * k * m, 1.2247449f * k * m, 0.70710677f * k * m)
         }
 
         fun contains(x: Float, z: Float): Boolean {
+            if (collapsed) return false
             val dx = x - cx
             val dz = z - cz
             return if (round) dx * dx + dz * dz <= half * half else abs(dx) <= half && abs(dz) <= half
         }
 
+        /** Distance entre (x, z) et le bord de la plateforme. */
+        fun edgeMargin(x: Float, z: Float): Float {
+            val dx = x - cx
+            val dz = z - cz
+            return if (round) half - sqrt(dx * dx + dz * dz) else half - maxOf(abs(dx), abs(dz))
+        }
+
         fun draw(canvas: Canvas) {
             canvas.save()
-            canvas.translate(sx(cx, cz), sy(cx, 0f, cz))
+            // Tremblement de plus en plus fort pendant l'effritement
+            var shake = 0f
+            if (crumbleT >= 0f && !collapsed) {
+                val f = (crumbleT / crumbleDur).coerceIn(0f, 1f)
+                shake = sin(time * 55f) * k * (0.015f + 0.05f * f)
+            }
+            canvas.translate(sx(cx, cz) + shake, sy(cx, 0f, cz) + dropY * k)
             if (round) {
                 canvas.drawOval(bottomOval, leftPaint)
                 canvas.drawRect(sideRect, leftPaint)
@@ -117,6 +179,11 @@ class GameView(context: Context) : View(context) {
                 canvas.drawPath(topPath, topPaint)
             }
             canvas.drawOval(markOval, markPaint)
+            if (crumbly) {
+                val f = if (crumbleT < 0f) 0f else (crumbleT / crumbleDur).coerceIn(0f, 1f)
+                crackPaint.alpha = (110 + 145 * f).toInt()
+                canvas.drawPath(crackPath, crackPaint)
+            }
             canvas.restore()
         }
     }
@@ -162,7 +229,21 @@ class GameView(context: Context) : View(context) {
     private var fallVy = 0f
     private var landSquash = 0f
     private var gameOverTime = 0f
+    private var gameOverReason: String? = null
     private var time = 0f
+    private var jumps = 0               // sauts réussis (pour déclencher les bonus)
+    private var scareT = 0f
+    private var crumbleHintShown = false
+
+    // Bonus : curseur entre -1 et 1, zone verte entre -bonusGreen et +bonusGreen
+    private var bonusCount = 0
+    private var bonusT = 0f
+    private var bonusPos = -1f
+    private var bonusDir = 1f
+    private var bonusSpeed = 1.4f
+    private var bonusGreen = 0.28f
+    private var bonusResult = 0         // 0 en cours, 1 réussi, -1 raté
+    private var bonusResultT = 0f
 
     // Caméra (en coordonnées isométriques projetées, en pixels)
     private var camX = 0f
@@ -221,6 +302,19 @@ class GameView(context: Context) : View(context) {
         color = Color.parseColor("#7A869A")
         textAlign = Paint.Align.CENTER
     }
+    private val redZonePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E53950") }
+    private val greenZonePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#3DBE6E") }
+    private val cursorPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+    private val cursorStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = Color.parseColor("#2E3A59")
+    }
+    private val bubblePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+    private val bangPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#E53950")
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
     private val rect = RectF()
     private val tmpPath = Path()
 
@@ -271,6 +365,11 @@ class GameView(context: Context) : View(context) {
         pz = 0f
         py = 0f
         score = 0
+        jumps = 0
+        bonusCount = 0
+        scareT = 0f
+        crumbleHintShown = false
+        gameOverReason = null
         newBest = false
         charge = 0f
         landSquash = 0f
@@ -291,9 +390,12 @@ class GameView(context: Context) : View(context) {
         val dist = minDist + Random.nextFloat() * 2.3f
         alongX = Random.nextBoolean()
         val color = palette[Random.nextInt(palette.size)]
+        // A partir de 25 points, de plus en plus de plateformes fragiles
+        val crumbleChance = if (score < crumbleFromScore) 0f else min(0.5f + (score - crumbleFromScore) / 50f, 0.9f)
+        val crumbly = Random.nextFloat() < crumbleChance
         // Le centre est aligné avec la position du personnage sur l'autre axe
-        next = if (alongX) Platform(current.cx + dist, pz, half, round, color)
-        else Platform(px, current.cz + dist, half, round, color)
+        next = if (alongX) Platform(current.cx + dist, pz, half, round, color, crumbly)
+        else Platform(px, current.cz + dist, half, round, color, crumbly)
         platforms.add(next)
         while (platforms.size > 6) platforms.removeAt(0)
     }
@@ -406,6 +508,7 @@ class GameView(context: Context) : View(context) {
                         state = State.CHARGING
                         charge = 0f
                     }
+                    State.BONUS -> bonusTap()
                     else -> {}
                 }
             }
@@ -413,6 +516,60 @@ class GameView(context: Context) : View(context) {
                 if (state == State.CHARGING) startJump()
             }
         }
+        return true
+    }
+
+    private fun startBonus() {
+        bonusCount++
+        bonusGreen = maxOf(0.08f, 0.28f - 0.04f * (bonusCount - 1))
+        bonusSpeed = min(1.4f + 0.35f * (bonusCount - 1), 3.6f)
+        bonusPos = -1f
+        bonusDir = 1f
+        bonusT = 0f
+        bonusResult = 0
+        bonusResultT = 0f
+        state = State.BONUS
+    }
+
+    private fun bonusTap() {
+        if (bonusResult != 0 || bonusT < bonusIntro) return
+        bonusResultT = 0f
+        if (abs(bonusPos) <= bonusGreen) {
+            bonusResult = 1
+            score += bonusReward
+            performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        } else {
+            bonusResult = -1
+            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        }
+    }
+
+    private fun endGame(reason: String?) {
+        state = State.GAME_OVER
+        gameOverTime = 0f
+        gameOverReason = reason
+        newBest = profile.addRun(score)
+        best = profile.best
+        syncOnline()
+    }
+
+    /** Lance l'effritement d'une plateforme fragile quand on atterrit dessus. */
+    private fun startCrumble(p: Platform) {
+        if (!p.crumbly || p.crumbleT >= 0f) return
+        val f = ((score - crumbleFromScore) / 35f).coerceIn(0f, 1f)
+        p.crumbleDur = 2.2f - 1.0f * f
+        p.crumbleT = 0f
+        if (!crumbleHintShown) {
+            crumbleHintShown = true
+            popups.add(Popup("Elle s'effrite, vite !", sx(px, pz) + camX, sy(px, playerHeight * 3.4f, pz) + camY, 1.4f))
+        }
+    }
+
+    /** Vérifie si le personnage a atterri tout au bord : il tremble et a peur. */
+    private fun checkScare(p: Platform): Boolean {
+        if (p.edgeMargin(px, pz) >= scareMargin) return false
+        scareT = scareDuration
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         return true
     }
 
@@ -434,6 +591,30 @@ class GameView(context: Context) : View(context) {
         val c = min(1f, dt * 6f)
         camX += (camTargetX - camX) * c
         camY += (camTargetY - camY) * c
+        if (scareT > 0f) scareT = (scareT - dt).coerceAtLeast(0f)
+
+        // Plateformes fragiles (en pause pendant le bonus et après la partie)
+        if (state != State.BONUS && state != State.GAME_OVER && state != State.LEADERBOARD) {
+            for (p in platforms) {
+                if (p.collapsed) {
+                    p.dropV += 30f * dt
+                    p.dropY += p.dropV * dt
+                } else if (p.crumbleT >= 0f) {
+                    p.crumbleT += dt
+                    if (p.crumbleT >= p.crumbleDur) {
+                        p.dropY = 0.001f
+                        p.dropV = 0f
+                        val standing = (state == State.READY || state == State.CHARGING) && p === current
+                        if (standing) {
+                            fallVy = 0f
+                            gameOverReason = "La plateforme s'est effondrée !"
+                            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            state = State.FALLING
+                        }
+                    }
+                }
+            }
+        }
 
         when (state) {
             State.CHARGING -> charge = min(charge + dt, maxChargeTime)
@@ -450,12 +631,22 @@ class GameView(context: Context) : View(context) {
             State.FALLING -> {
                 fallVy += 30f * dt
                 py -= fallVy * dt
-                if (sy(px, py + playerHeight, pz) > h) {
-                    state = State.GAME_OVER
-                    gameOverTime = 0f
-                    newBest = profile.addRun(score)
-                    best = profile.best
-                    syncOnline()
+                if (sy(px, py + playerHeight, pz) > h) endGame(gameOverReason)
+            }
+
+            State.BONUS -> {
+                bonusT += dt
+                if (bonusResult == 0) {
+                    if (bonusT >= bonusIntro) {
+                        bonusPos += bonusDir * bonusSpeed * dt
+                        if (bonusPos > 1f) { bonusPos = 2f - bonusPos; bonusDir = -1f }
+                        if (bonusPos < -1f) { bonusPos = -2f - bonusPos; bonusDir = 1f }
+                    }
+                } else {
+                    bonusResultT += dt
+                    if (bonusResultT > 1.0f) {
+                        if (bonusResult > 0) state = State.READY else endGame("Bonus raté !")
+                    }
                 }
             }
 
@@ -477,23 +668,28 @@ class GameView(context: Context) : View(context) {
         when {
             next.contains(px, pz) -> {
                 score++
+                jumps++
                 landSquash = 1f
-                val perfect = abs(px - next.cx) < 0.13f && abs(pz - next.cz) < 0.13f
+                val scared = checkScare(next)
+                val perfect = !scared && abs(px - next.cx) < 0.13f && abs(pz - next.cz) < 0.13f
                 popups.add(
                     Popup(
                         if (perfect) "Parfait ! +1" else "+1",
                         sx(px, pz) + camX, sy(px, playerHeight * 2.2f, pz) + camY, 0.8f
                     )
                 )
-                performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                if (!scared) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 current = next
                 spawnNext()
                 updateCameraTarget()
-                state = State.READY
+                startCrumble(current)
+                if (jumps % bonusEvery == 0) startBonus() else state = State.READY
             }
             current.contains(px, pz) -> {
                 // Saut trop court mais on reste sur sa plateforme : pas de point.
                 landSquash = 1f
+                checkScare(current)
+                startCrumble(current)
                 state = State.READY
             }
             else -> {
@@ -573,6 +769,7 @@ class GameView(context: Context) : View(context) {
             }
         }
 
+        if (state == State.BONUS) drawBonus(canvas)
         if (state == State.GAME_OVER) drawGameOver(canvas)
         if (state == State.LEADERBOARD) drawLeaderboard(canvas)
 
@@ -684,6 +881,46 @@ class GameView(context: Context) : View(context) {
             primaryBtnPaint, w * 0.045f) { state = boardReturnState }
     }
 
+    private fun drawBonus(canvas: Canvas) {
+        canvas.drawRect(0f, 0f, w, h, overlayPaint)
+        val cy = h * 0.5f
+        textPaint.textSize = w * 0.13f
+        canvas.drawText("BONUS", w / 2f, cy - w * 0.28f, textPaint)
+        textPaint.textSize = w * 0.045f
+        canvas.drawText("Touche quand le curseur est dans le vert", w / 2f, cy - w * 0.17f, textPaint)
+
+        // Barre : rouge aux extrémités, vert au milieu
+        val left = w * 0.1f
+        val right = w * 0.9f
+        val bh = w * 0.1f
+        val half = (right - left) / 2f
+        val mid = (left + right) / 2f
+        rect.set(left, cy - bh / 2, right, cy + bh / 2)
+        canvas.drawRoundRect(rect, bh / 2, bh / 2, redZonePaint)
+        rect.set(mid - half * bonusGreen, cy - bh / 2, mid + half * bonusGreen, cy + bh / 2)
+        canvas.drawRect(rect, greenZonePaint)
+
+        // Curseur
+        val cx = mid + half * bonusPos
+        val cw = w * 0.025f
+        val ch = bh + w * 0.07f
+        rect.set(cx - cw / 2, cy - ch / 2, cx + cw / 2, cy + ch / 2)
+        cursorStroke.strokeWidth = w * 0.008f
+        canvas.drawRoundRect(rect, cw / 2, cw / 2, cursorPaint)
+        canvas.drawRoundRect(rect, cw / 2, cw / 2, cursorStroke)
+
+        val msg = when {
+            bonusResult > 0 -> "Bravo ! +$bonusReward"
+            bonusResult < 0 -> "Raté !"
+            bonusT < bonusIntro -> "Prêt ?"
+            else -> ""
+        }
+        if (msg.isNotEmpty()) {
+            textPaint.textSize = w * 0.09f
+            canvas.drawText(msg, w / 2f, cy + w * 0.25f, textPaint)
+        }
+    }
+
     private fun drawPlayer(canvas: Canvas) {
         // Ombre sur la plateforme quand le personnage est au-dessus
         if (state != State.FALLING && (current.contains(px, pz) || next.contains(px, pz))) {
@@ -714,8 +951,12 @@ class GameView(context: Context) : View(context) {
         val y0 = py
         val y1 = py + hgt
 
+        // Tremblement de peur
+        val scared = scareT > 0f
+        val trembleX = if (scared) sin(time * 75f) * k * 0.035f * (scareT / scareDuration).coerceAtLeast(0.3f) else 0f
+
         canvas.save()
-        canvas.translate(sx(px, pz), sy(px, 0f, pz))
+        canvas.translate(sx(px, pz) + trembleX, sy(px, 0f, pz))
         // face gauche (x min), face droite (z min), dessus
         quad(tmpPath, -a, y1, a, -a, y1, -a, -a, y0, -a, -a, y0, a)
         canvas.drawPath(tmpPath, playerLeft)
@@ -726,7 +967,7 @@ class GameView(context: Context) : View(context) {
 
         // Yeux sur la face visible, du côté où il va sauter
         val eyeY = y0 + hgt * 0.68f
-        val eyeR = a * 0.24f * k
+        val eyeR = a * (if (scared) 0.3f else 0.24f) * k
         val closed = (time % 3.2f) > 3.05f || state == State.GAME_OVER
         for (t in floatArrayOf(0.25f, 0.68f)) {
             val ex: Float
@@ -745,8 +986,21 @@ class GameView(context: Context) : View(context) {
             } else {
                 canvas.drawCircle(ex, ey, eyeR, eyeWhitePaint)
                 val dir = if (alongX) 1f else -1f
-                canvas.drawCircle(ex + dir * eyeR * 0.35f, ey - eyeR * 0.15f, eyeR * 0.5f, pupilPaint)
+                val pupil = if (scared) 0.32f else 0.5f
+                canvas.drawCircle(ex + dir * eyeR * 0.35f, ey - eyeR * 0.15f, eyeR * pupil, pupilPaint)
             }
+        }
+
+        // "!" au-dessus de la tête quand il a eu peur
+        if (scared) {
+            val elapsed = scareDuration - scareT
+            val pop = min(1f, elapsed / 0.15f)
+            val bx = 0f
+            val by = isoY(0f, y1 + 0.5f, 0f)
+            val r = k * 0.2f * pop
+            canvas.drawCircle(bx, by, r, bubblePaint)
+            bangPaint.textSize = r * 1.5f
+            canvas.drawText("!", bx, by - (bangPaint.descent() + bangPaint.ascent()) / 2f, bangPaint)
         }
         canvas.restore()
     }
@@ -754,6 +1008,10 @@ class GameView(context: Context) : View(context) {
     private fun drawGameOver(canvas: Canvas) {
         canvas.drawRect(0f, 0f, w, h, overlayPaint)
         val y0 = h * 0.34f
+        gameOverReason?.let {
+            textPaint.textSize = w * 0.05f
+            canvas.drawText(it, w / 2f, y0 - w * 0.14f, textPaint)
+        }
         textPaint.textSize = w * 0.12f
         canvas.drawText("Perdu !", w / 2f, y0, textPaint)
         textPaint.textSize = w * 0.07f

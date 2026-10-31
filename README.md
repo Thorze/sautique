@@ -7,6 +7,12 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
 - 1 saut réussi = 1 point (compteur en gros en haut de l'écran).
 - Saut trop court sur ta propre plateforme : pas de point, tu peux réessayer.
 - Tomber dans le vide = partie terminée. Le record est sauvegardé.
+- **Bonus** tous les 10 sauts réussis : un curseur va et vient sur une barre rouge avec une
+  zone verte au milieu. Touche l'écran quand il est dans le vert : +5 points. Sinon, perdu !
+  Le curseur accélère et la zone verte rétrécit à chaque bonus.
+- À partir de 25 points apparaissent des **plateformes fragiles** (fissurées) : dès que tu
+  atterris dessus elles tremblent puis s'effondrent, il faut ressauter vite.
+- Atterrir tout au bord fait **trembler** le personnage, avec un « ! » de frayeur.
 - Les plateformes (cubes ou cylindres) rétrécissent au fil des points et apparaissent
   tantôt vers la droite, tantôt vers la gauche.
 
