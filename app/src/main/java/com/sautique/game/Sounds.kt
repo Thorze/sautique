@@ -12,7 +12,7 @@ import kotlin.random.Random
  *
  * - Musique de fond : boucle1..boucle4, chacune répétée plusieurs fois puis une autre au hasard.
  * - Pendant un niveau bonus : « bonus » en boucle.
- * - En cas de défaite : gameover0, gameover1 puis gameover2 à la suite.
+ * - En cas de défaite : gameover2.
  */
 class Sounds(private val context: Context) {
 
@@ -54,7 +54,7 @@ class Sounds(private val context: Context) {
 
     private val loops = listOf("boucle1", "boucle2", "boucle3", "boucle4").map { resId(it) }.filter { it != 0 }
     private val bonusRes = resId("bonus")
-    private val gameOverSeq = listOf("gameover0", "gameover1", "gameover2").map { resId(it) }.filter { it != 0 }
+    private val gameOverSeq = listOf("gameover2").map { resId(it) }.filter { it != 0 }
 
     private var mode = Mode.PLAYLIST
     private var music: MediaPlayer? = null
@@ -154,7 +154,7 @@ class Sounds(private val context: Context) {
         if (!paused) startMode()
     }
 
-    /** Défaite : gameover0, 1 et 2 à la suite, puis [onDone] et retour à la musique d'ambiance. */
+    /** Défaite : gameover2, puis [onDone] et retour à la musique d'ambiance. */
     fun playGameOver(onDone: () -> Unit) {
         mode = Mode.GAME_OVER
         stopMusic()

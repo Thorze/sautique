@@ -8,7 +8,7 @@ espaces deviennent `_`, ex. `Oh-yeah.mp3` → `oh_yeah`).
 |---|---|
 | `boucle1` … `boucle4` | musique de fond : chaque boucle est répétée 3-4 fois, puis une autre au hasard |
 | `bonus` | musique pendant les niveaux bonus |
-| `gameover0`, `gameover1`, `gameover2` | joués à la suite quand on perd |
+| `gameover2` | quand on perd |
 | `chute` | quand le personnage tombe |
 | `limite`, `limite2`, `limite3` | atterrissage tout au bord (un au hasard) |
 | `perfect`, `oh_yeah`, `ifeelgood` | atterrissage parfait (un au hasard) |
