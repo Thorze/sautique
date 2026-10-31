@@ -33,6 +33,13 @@ class GameView(context: Context) : View(context) {
 
     private enum class State { READY, CHARGING, JUMPING, FALLING, BONUS, GAME_OVER, LEADERBOARD, CUSTOMIZE }
     private enum class FallAnim { SPIN, PANIC, PARACHUTE, CARTOON }
+    private enum class JumpTrick { NONE, FRONTFLIP, BACKFLIP, PIROUETTE, TUCK }
+    private enum class BonusType(val title: String, val hint: String) {
+        TIMING("Curseur", "Touche quand le curseur est dans le vert"),
+        MASH("Tape-tape", "Tape le plus vite possible !"),
+        STARS("Attrape les étoiles", "Touche les étoiles avant qu'elles filent"),
+        WHEEL("Roue de la fortune", "Touche pour arrêter la roue")
+    }
     private enum class WorldStatus { IDLE, LOADING, OK, ERROR, NOT_CONFIGURED }
 
     /** Bouton dessiné sur le canvas. */
@@ -51,7 +58,10 @@ class GameView(context: Context) : View(context) {
     // Niveau bonus
     private val bonusEvery = 10        // un bonus tous les 10 sauts réussis
     private val bonusReward = 5        // points gagnés si on réussit le bonus
-    private val bonusIntro = 1.0f      // temps avant que le curseur parte (évite un appui involontaire)
+    private val bonusIntro = 1.2f      // temps avant le début (évite un appui involontaire)
+    private val mashDuration = 3f
+    private val starsDuration = 6f
+    private val wheelValues = intArrayOf(2, 5, 0, 3, 10, 1, 4, 0)
 
     // Plateformes fragiles
     private val crumbleFromScore = 25
@@ -258,8 +268,25 @@ class GameView(context: Context) : View(context) {
     private var bonusDir = 1f
     private var bonusSpeed = 1.4f
     private var bonusGreen = 0.28f
-    private var bonusResult = 0         // 0 en cours, 1 réussi, -1 raté
+    private var bonusResult = 0         // 0 en cours, 1 terminé
     private var bonusResultT = 0f
+    private var bonusType = BonusType.TIMING
+    private var bonusGain = 0
+    private var bonusTaps = 0           // tapes (Tape-tape) ou étoiles attrapées
+    private var bonusPulse = 0f
+    private val stars = ArrayList<FloatArray>()     // x, y, vie restante, vie totale
+    private val sparkles = ArrayList<FloatArray>()  // x, y, vie restante
+    private var starSpawn = 0f
+    private var wheelAngle = 0f
+    private var wheelSpeed = 0f
+    private var wheelStopping = false
+    private var jumpTrick = JumpTrick.NONE
+    private val starPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FFD54F") }
+    private val wheelText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
 
     // Caméra (en coordonnées isométriques projetées, en pixels)
     private var camX = 0f
@@ -543,7 +570,7 @@ class GameView(context: Context) : View(context) {
                         state = State.CHARGING
                         charge = 0f
                     }
-                    State.BONUS -> bonusTap()
+                    State.BONUS -> bonusTap(event.x, event.y)
                     else -> {}
                 }
             }
@@ -594,27 +621,64 @@ class GameView(context: Context) : View(context) {
 
     private fun startBonus() {
         bonusCount++
-        bonusGreen = maxOf(0.08f, 0.28f - 0.04f * (bonusCount - 1))
-        bonusSpeed = min(1.4f + 0.35f * (bonusCount - 1), 3.6f)
+        // Un type au hasard, différent du précédent
+        val types = BonusType.values().filter { bonusCount == 1 || it != bonusType }
+        bonusType = types[Random.nextInt(types.size)]
+        bonusGreen = maxOf(0.08f, 0.28f - 0.03f * (bonusCount - 1))
+        bonusSpeed = min(1.4f + 0.3f * (bonusCount - 1), 3.6f)
         bonusPos = -1f
         bonusDir = 1f
         bonusT = 0f
         bonusResult = 0
         bonusResultT = 0f
+        bonusGain = 0
+        bonusTaps = 0
+        bonusPulse = 0f
+        stars.clear()
+        sparkles.clear()
+        starSpawn = 0f
+        wheelAngle = Random.nextFloat() * 360f
+        wheelSpeed = 620f
+        wheelStopping = false
         state = State.BONUS
     }
 
-    private fun bonusTap() {
+    private fun bonusTap(x: Float, y: Float) {
         if (bonusResult != 0 || bonusT < bonusIntro) return
-        bonusResultT = 0f
-        if (abs(bonusPos) <= bonusGreen) {
-            bonusResult = 1
-            score += bonusReward
-            performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-        } else {
-            bonusResult = -1
-            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        when (bonusType) {
+            BonusType.TIMING -> finishBonus(if (abs(bonusPos) <= bonusGreen) bonusReward else 0)
+            BonusType.MASH -> {
+                bonusTaps++
+                bonusPulse = 1f
+            }
+            BonusType.STARS -> {
+                val r = w * 0.1f
+                val hit = stars.firstOrNull { (it[0] - x) * (it[0] - x) + (it[1] - y) * (it[1] - y) < r * r }
+                if (hit != null) {
+                    stars.remove(hit)
+                    bonusTaps++
+                    sparkles.add(floatArrayOf(hit[0], hit[1], 0.5f))
+                    performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                }
+            }
+            BonusType.WHEEL -> wheelStopping = true
         }
+    }
+
+    /** Fin du bonus : ajoute les points gagnés (0 = raté, la partie continue). */
+    private fun finishBonus(gain: Int) {
+        bonusGain = gain
+        score += gain
+        bonusResult = 1
+        bonusResultT = 0f
+        performHapticFeedback(if (gain > 0) HapticFeedbackConstants.VIRTUAL_KEY else HapticFeedbackConstants.LONG_PRESS)
+    }
+
+    /** Case de la roue sous le repère (en haut). */
+    private fun wheelIndex(): Int {
+        val seg = 360f / wheelValues.size
+        val a = ((270f - wheelAngle) % 360f + 360f) % 360f
+        return (a / seg).toInt().coerceIn(0, wheelValues.size - 1)
     }
 
     private fun endGame(reason: String?) {
@@ -655,6 +719,9 @@ class GameView(context: Context) : View(context) {
         jumpDuration = 0.35f + 0.3f * ratio
         jumpHeight = 0.6f + jumpDist * 0.3f
         jumpT = 0f
+        // Petite figure en l'air sur les sauts assez longs
+        val tricks = JumpTrick.values().filter { it != JumpTrick.NONE }
+        jumpTrick = if (ratio < 0.3f) JumpTrick.NONE else tricks[Random.nextInt(tricks.size)]
         state = State.JUMPING
     }
 
@@ -721,18 +788,49 @@ class GameView(context: Context) : View(context) {
 
             State.BONUS -> {
                 bonusT += dt
-                if (bonusResult == 0) {
-                    if (bonusT >= bonusIntro) {
-                        bonusPos += bonusDir * bonusSpeed * dt
-                        if (bonusPos > 1f) { bonusPos = 2f - bonusPos; bonusDir = -1f }
-                        if (bonusPos < -1f) { bonusPos = -2f - bonusPos; bonusDir = 1f }
+                if (bonusPulse > 0f) bonusPulse = (bonusPulse - dt * 6f).coerceAtLeast(0f)
+                sparkles.forEach { it[2] -= dt }
+                sparkles.removeAll { it[2] <= 0f }
+                val t = bonusT - bonusIntro
+                if (bonusResult == 0 && t >= 0f) {
+                    when (bonusType) {
+                        BonusType.TIMING -> {
+                            bonusPos += bonusDir * bonusSpeed * dt
+                            if (bonusPos > 1f) { bonusPos = 2f - bonusPos; bonusDir = -1f }
+                            if (bonusPos < -1f) { bonusPos = -2f - bonusPos; bonusDir = 1f }
+                        }
+                        BonusType.MASH -> if (t >= mashDuration) finishBonus(min(bonusTaps / 4, 10))
+                        BonusType.STARS -> {
+                            starSpawn -= dt
+                            if (t < starsDuration && starSpawn <= 0f && stars.size < 3) {
+                                val life = maxOf(0.75f, 1.4f - 0.08f * bonusCount)
+                                stars.add(floatArrayOf(
+                                    w * (0.15f + Random.nextFloat() * 0.7f),
+                                    h * (0.36f + Random.nextFloat() * 0.38f),
+                                    life, life
+                                ))
+                                starSpawn = 0.45f
+                            }
+                            stars.forEach { it[2] -= dt }
+                            stars.removeAll { it[2] <= 0f }
+                            if (t >= starsDuration && stars.isEmpty()) finishBonus(bonusTaps)
+                        }
+                        BonusType.WHEEL -> {
+                            wheelAngle = (wheelAngle + wheelSpeed * dt) % 360f
+                            if (t > 6f) wheelStopping = true
+                            if (wheelStopping) {
+                                wheelSpeed *= kotlin.math.exp(-1.6f * dt)
+                                if (wheelSpeed < 12f) {
+                                    wheelSpeed = 0f
+                                    finishBonus(wheelValues[wheelIndex()])
+                                }
+                            }
+                        }
                     }
-                } else {
+                } else if (bonusResult != 0) {
                     bonusResultT += dt
-                    if (bonusResultT > 1.0f) {
-                        // Bonus raté : pas de points en plus, mais la partie continue
-                        state = State.READY
-                    }
+                    // Raté ou réussi, la partie continue
+                    if (bonusResultT > 1.3f) state = State.READY
                 }
             }
 
@@ -977,43 +1075,138 @@ class GameView(context: Context) : View(context) {
             primaryBtnPaint, w * 0.045f) { state = boardReturnState }
     }
 
+    private fun drawStar(canvas: Canvas, x: Float, y: Float, r: Float, paint: Paint) {
+        tmpPath.reset()
+        for (i in 0 until 10) {
+            val rr = if (i % 2 == 0) r else r * 0.45f
+            val a = -Math.PI / 2 + i * Math.PI / 5
+            val px0 = x + (rr * kotlin.math.cos(a)).toFloat()
+            val py0 = y + (rr * kotlin.math.sin(a)).toFloat()
+            if (i == 0) tmpPath.moveTo(px0, py0) else tmpPath.lineTo(px0, py0)
+        }
+        tmpPath.close()
+        canvas.drawPath(tmpPath, paint)
+    }
+
+    /** Barre de temps restant (1 = plein). */
+    private fun drawTimeBar(canvas: Canvas, y: Float, remaining: Float) {
+        val left = w * 0.15f
+        val right = w * 0.85f
+        val bh = w * 0.025f
+        rect.set(left, y, right, y + bh)
+        canvas.drawRoundRect(rect, bh / 2, bh / 2, barBgPaint)
+        rect.set(left, y, left + (right - left) * remaining.coerceIn(0f, 1f), y + bh)
+        canvas.drawRoundRect(rect, bh / 2, bh / 2, greenZonePaint)
+    }
+
     private fun drawBonus(canvas: Canvas) {
         canvas.drawRect(0f, 0f, w, h, overlayPaint)
-        val cy = h * 0.5f
-        textPaint.textSize = w * 0.13f
-        canvas.drawText("BONUS", w / 2f, cy - w * 0.28f, textPaint)
-        textPaint.textSize = w * 0.045f
-        canvas.drawText("Touche quand le curseur est dans le vert", w / 2f, cy - w * 0.17f, textPaint)
+        val titleY = h * 0.2f
+        textPaint.textSize = w * 0.12f
+        canvas.drawText("BONUS", w / 2f, titleY, textPaint)
+        textPaint.textSize = w * 0.06f
+        canvas.drawText(bonusType.title, w / 2f, titleY + w * 0.1f, textPaint)
+        textPaint.textSize = w * 0.04f
+        canvas.drawText(bonusType.hint, w / 2f, titleY + w * 0.17f, textPaint)
 
-        // Barre : rouge aux extrémités, vert au milieu
-        val left = w * 0.1f
-        val right = w * 0.9f
-        val bh = w * 0.1f
-        val half = (right - left) / 2f
-        val mid = (left + right) / 2f
-        rect.set(left, cy - bh / 2, right, cy + bh / 2)
-        canvas.drawRoundRect(rect, bh / 2, bh / 2, redZonePaint)
-        rect.set(mid - half * bonusGreen, cy - bh / 2, mid + half * bonusGreen, cy + bh / 2)
-        canvas.drawRect(rect, greenZonePaint)
-
-        // Curseur
-        val cx = mid + half * bonusPos
-        val cw = w * 0.025f
-        val ch = bh + w * 0.07f
-        rect.set(cx - cw / 2, cy - ch / 2, cx + cw / 2, cy + ch / 2)
-        cursorStroke.strokeWidth = w * 0.008f
-        canvas.drawRoundRect(rect, cw / 2, cw / 2, cursorPaint)
-        canvas.drawRoundRect(rect, cw / 2, cw / 2, cursorStroke)
+        val t = (bonusT - bonusIntro).coerceAtLeast(0f)
+        val cy = h * 0.55f
+        when (bonusType) {
+            BonusType.TIMING -> {
+                // Barre : rouge aux extrémités, vert au milieu
+                val left = w * 0.1f
+                val right = w * 0.9f
+                val bh = w * 0.1f
+                val half = (right - left) / 2f
+                val mid = (left + right) / 2f
+                rect.set(left, cy - bh / 2, right, cy + bh / 2)
+                canvas.drawRoundRect(rect, bh / 2, bh / 2, redZonePaint)
+                rect.set(mid - half * bonusGreen, cy - bh / 2, mid + half * bonusGreen, cy + bh / 2)
+                canvas.drawRect(rect, greenZonePaint)
+                val cx = mid + half * bonusPos
+                val cw = w * 0.025f
+                val ch = bh + w * 0.07f
+                rect.set(cx - cw / 2, cy - ch / 2, cx + cw / 2, cy + ch / 2)
+                cursorStroke.strokeWidth = w * 0.008f
+                canvas.drawRoundRect(rect, cw / 2, cw / 2, cursorPaint)
+                canvas.drawRoundRect(rect, cw / 2, cw / 2, cursorStroke)
+            }
+            BonusType.MASH -> {
+                textPaint.textSize = w * 0.1f
+                canvas.drawText("$bonusTaps", w / 2f, cy - w * 0.27f, textPaint)
+                val r = w * 0.19f * (1f + 0.1f * bonusPulse)
+                canvas.drawCircle(w / 2f, cy, r, primaryBtnPaint)
+                btnTextPaint.color = Color.WHITE
+                btnTextPaint.textSize = w * 0.08f
+                canvas.drawText("TAPE !", w / 2f, cy - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2f, btnTextPaint)
+                drawTimeBar(canvas, cy + w * 0.27f, 1f - t / mashDuration)
+                textPaint.textSize = w * 0.045f
+                canvas.drawText("+${min(bonusTaps / 4, 10)} points", w / 2f, cy + w * 0.38f, textPaint)
+            }
+            BonusType.STARS -> {
+                for (st in stars) {
+                    val f = st[2] / st[3]
+                    val pop = min(1f, (1f - f) * 6f)
+                    starPaint.alpha = (255 * min(1f, f * 3f)).toInt()
+                    drawStar(canvas, st[0], st[1], w * 0.075f * pop, starPaint)
+                }
+                starPaint.alpha = 255
+                for (sp in sparkles) {
+                    val f = sp[2] / 0.5f
+                    starPaint.alpha = (255 * f).toInt()
+                    for (k2 in 0 until 6) {
+                        val a = k2 * Math.PI / 3
+                        val d = w * 0.12f * (1f - f)
+                        drawStar(canvas, sp[0] + (d * kotlin.math.cos(a)).toFloat(), sp[1] + (d * kotlin.math.sin(a)).toFloat(), w * 0.02f, starPaint)
+                    }
+                }
+                starPaint.alpha = 255
+                textPaint.textSize = w * 0.06f
+                canvas.drawText("★ $bonusTaps", w / 2f, h * 0.84f, textPaint)
+                drawTimeBar(canvas, h * 0.86f, 1f - t / starsDuration)
+            }
+            BonusType.WHEEL -> {
+                val r = w * 0.34f
+                val n = wheelValues.size
+                val seg = 360f / n
+                rect.set(w / 2f - r, cy - r, w / 2f + r, cy + r)
+                for (i in 0 until n) {
+                    itemPaint.color = palette[i % palette.size]
+                    if (wheelValues[i] == 0) itemPaint.color = Color.parseColor("#5C6378")
+                    if (wheelValues[i] == 10) itemPaint.color = Color.parseColor("#E0B03C")
+                    canvas.drawArc(rect, wheelAngle + i * seg, seg, true, itemPaint)
+                }
+                wheelText.textSize = w * 0.065f
+                for (i in 0 until n) {
+                    val a = Math.toRadians((wheelAngle + i * seg + seg / 2f).toDouble())
+                    val tx = w / 2f + (r * 0.68f * kotlin.math.cos(a)).toFloat()
+                    val ty = cy + (r * 0.68f * kotlin.math.sin(a)).toFloat()
+                    val label = if (wheelValues[i] == 0) "0" else "+${wheelValues[i]}"
+                    canvas.drawText(label, tx, ty - (wheelText.descent() + wheelText.ascent()) / 2f, wheelText)
+                }
+                canvas.drawCircle(w / 2f, cy, r * 0.12f, cursorPaint)
+                // Repère en haut
+                tmpPath.reset()
+                tmpPath.moveTo(w / 2f - w * 0.04f, cy - r - w * 0.05f)
+                tmpPath.lineTo(w / 2f + w * 0.04f, cy - r - w * 0.05f)
+                tmpPath.lineTo(w / 2f, cy - r + w * 0.03f)
+                tmpPath.close()
+                canvas.drawPath(tmpPath, cursorPaint)
+                cursorStroke.strokeWidth = w * 0.006f
+                canvas.drawPath(tmpPath, cursorStroke)
+            }
+        }
 
         val msg = when {
-            bonusResult > 0 -> "Bravo ! +$bonusReward"
-            bonusResult < 0 -> "Raté… on continue !"
+            bonusResult != 0 && bonusGain > 0 -> "Bravo ! +$bonusGain"
+            bonusResult != 0 -> "Raté… on continue !"
             bonusT < bonusIntro -> "Prêt ?"
             else -> ""
         }
         if (msg.isNotEmpty()) {
-            textPaint.textSize = w * 0.09f
-            canvas.drawText(msg, w / 2f, cy + w * 0.25f, textPaint)
+            textPaint.textSize = w * 0.085f
+            val my = if (bonusType == BonusType.STARS) h * 0.55f else h * 0.93f
+            canvas.drawText(msg, w / 2f, my, textPaint)
         }
     }
 
@@ -1046,8 +1239,16 @@ class GameView(context: Context) : View(context) {
             scaleH = 1f - 0.22f * landSquash
             scaleW = 1f + 0.1f * landSquash
         } else if (state == State.JUMPING) {
-            scaleH = 1.1f
-            scaleW = 0.95f
+            if (jumpTrick == JumpTrick.TUCK) {
+                // Se met en boule au sommet du saut
+                val f = (jumpT / jumpDuration).coerceIn(0f, 1f)
+                val s = 1f - 0.4f * sin(f * Math.PI.toFloat())
+                scaleH = s
+                scaleW = 1f + 0.15f * (1f - s)
+            } else {
+                scaleH = 1.1f
+                scaleW = 0.95f
+            }
         }
 
         val scared = scareT > 0f
@@ -1072,8 +1273,24 @@ class GameView(context: Context) : View(context) {
         }
         val bodyH = shapeHeight(scaleH)
 
+        // Figures pendant le saut
+        var flipScaleX = 1f
+        if (state == State.JUMPING && jumpTrick != JumpTrick.NONE) {
+            val f = (jumpT / jumpDuration).coerceIn(0f, 1f)
+            val e = f * f * (3f - 2f * f)
+            val dirSign = if (alongX) 1f else -1f
+            when (jumpTrick) {
+                JumpTrick.FRONTFLIP -> rotation = 360f * e * dirSign
+                JumpTrick.BACKFLIP -> rotation = -360f * e * dirSign
+                JumpTrick.PIROUETTE -> flipScaleX = kotlin.math.cos(e * 2f * Math.PI.toFloat())
+                else -> {}
+            }
+        }
+
         canvas.save()
-        if (rotation != 0f) canvas.rotate(rotation, ox, oy + isoY(0f, py + bodyH / 2f, 0f))
+        val pivotY = oy + isoY(0f, py + bodyH / 2f, 0f)
+        if (rotation != 0f) canvas.rotate(rotation, ox, pivotY)
+        if (flipScaleX != 1f) canvas.scale(if (abs(flipScaleX) < 0.05f) 0.05f else flipScaleX, 1f, ox, pivotY)
         if (chute) drawParachute(canvas, ox, oy + isoY(0f, py + bodyH, 0f))
         drawCharacter(canvas, ox, oy, py, scaleW, scaleH, alongX, scared || panic, front)
         canvas.restore()

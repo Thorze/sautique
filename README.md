@@ -7,10 +7,14 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
 - 1 saut réussi = 1 point (compteur en gros en haut de l'écran).
 - Saut trop court sur ta propre plateforme : pas de point, tu peux réessayer.
 - Tomber dans le vide = partie terminée. Le record est sauvegardé.
-- **Bonus** tous les 10 sauts réussis : un curseur va et vient sur une barre rouge avec une
-  zone verte au milieu. Touche l'écran quand il est dans le vert : +5 points. Raté : pas de
-  bonus, mais la partie continue.
-  Le curseur accélère et la zone verte rétrécit à chaque bonus.
+- **Bonus** tous les 10 sauts réussis, d'un type tiré au hasard (raté = pas de points, mais
+  la partie continue) :
+  - *Curseur* : touche quand le curseur est dans la zone verte (+5) ;
+  - *Tape-tape* : tape le plus vite possible pendant 3 s (+1 toutes les 4 tapes, max +10) ;
+  - *Attrape les étoiles* : touche les étoiles avant qu'elles disparaissent (+1 par étoile) ;
+  - *Roue de la fortune* : arrête la roue (0 à +10).
+- En l'air, le personnage fait une figure au hasard sur les sauts assez longs : salto avant,
+  salto arrière, pirouette ou boule.
 - À partir de 25 points apparaissent des **plateformes fragiles** (fissurées) : dès que tu
   atterris dessus elles tremblent puis s'effondrent, il faut ressauter vite.
 - **Personnage** : choisis ta forme (cube, boule, cylindre, tour), ta couleur et tes
