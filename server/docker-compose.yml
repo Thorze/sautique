@@ -1,0 +1,11 @@
+services:
+  sautique:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      # Facultatif : même valeur que SCORES_KEY côté appli
+      SAUTIQUE_KEY: ""

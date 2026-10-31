@@ -19,8 +19,8 @@ jobs:
 
       - name: Build debug APK
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SCORES_URL: ${{ secrets.SCORES_URL }}
+          SCORES_KEY: ${{ secrets.SCORES_KEY }}
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon

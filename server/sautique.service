@@ -1,0 +1,18 @@
+# Service systemd (alternative à Docker).
+# Copier vers /etc/systemd/system/sautique.service puis :
+#   sudo systemctl daemon-reload && sudo systemctl enable --now sautique
+[Unit]
+Description=Serveur de scores Sautique
+After=network.target
+
+[Service]
+User=sautique
+WorkingDirectory=/opt/sautique
+Environment=SAUTIQUE_PORT=8080
+Environment=SAUTIQUE_DB=/opt/sautique/scores.db
+Environment=SAUTIQUE_KEY=
+ExecStart=/usr/bin/python3 /opt/sautique/sautique_server.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

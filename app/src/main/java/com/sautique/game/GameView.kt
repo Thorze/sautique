@@ -127,7 +127,7 @@ class GameView(context: Context) : View(context) {
     private var state = State.READY
     private var score = 0
     private val profile = LocalScores(context)
-    private val online = OnlineLeaderboard(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY)
+    private val online = ScoreServer(BuildConfig.SCORES_URL, BuildConfig.SCORES_KEY)
     private var best = profile.best
     private var newBest = false
 
@@ -135,7 +135,7 @@ class GameView(context: Context) : View(context) {
     private var boardWorld = false            // onglet : false = perso, true = mondial
     private var boardReturnState = State.READY
     private var worldStatus = WorldStatus.IDLE
-    private var worldEntries: List<OnlineLeaderboard.Entry> = emptyList()
+    private var worldEntries: List<ScoreServer.Entry> = emptyList()
     private var worldRank: Int? = null
     private var personalRuns: List<LocalScores.Run> = emptyList()
     private var syncing = false
@@ -381,15 +381,15 @@ class GameView(context: Context) : View(context) {
         }
         worldStatus = WorldStatus.LOADING
         worldRank = null
-        online.fetchTop(10) { list ->
-            if (list == null) {
+        online.fetchBoard(10, profile.playerId) { board ->
+            if (board == null) {
                 worldStatus = WorldStatus.ERROR
             } else {
-                worldEntries = list
+                worldEntries = board.top
+                worldRank = board.myRank
                 worldStatus = WorldStatus.OK
             }
         }
-        if (best > 0) online.fetchRank(best) { worldRank = it }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -666,7 +666,7 @@ class GameView(context: Context) : View(context) {
                     canvas.drawText("Classement mondial non configuré.", w / 2f, centerY, greyTextPaint)
                 WorldStatus.OK -> {
                     if (worldEntries.isEmpty()) canvas.drawText("Aucun score pour l'instant.", w / 2f, centerY, greyTextPaint)
-                    worldEntries.forEachIndexed { i, e -> row(i, e.pseudo, e.best.toString(), e.id == profile.playerId) }
+                    worldEntries.forEachIndexed { i, e -> row(i, e.pseudo, e.best.toString(), e.me) }
                 }
             }
             greyTextPaint.textSize = w * 0.04f

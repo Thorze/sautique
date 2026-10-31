@@ -11,13 +11,16 @@ android {
         applicationId = "com.sautique.game"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
 
-        // Classement mondial (Supabase) : propriétés Gradle ou variables d'environnement.
-        fun secret(name: String) = (project.findProperty(name) as String?) ?: System.getenv(name) ?: ""
-        buildConfigField("String", "SUPABASE_URL", "\"${secret("SUPABASE_URL")}\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${secret("SUPABASE_ANON_KEY")}\"")
+        // Serveur de scores : variable d'environnement (secret GitHub) ou gradle.properties.
+        fun setting(name: String): String =
+            System.getenv(name)?.takeIf { it.isNotBlank() }
+                ?: (project.findProperty(name) as String?)?.trim()
+                ?: ""
+        buildConfigField("String", "SCORES_URL", "\"${setting("SCORES_URL")}\"")
+        buildConfigField("String", "SCORES_KEY", "\"${setting("SCORES_KEY")}\"")
     }
 
     buildFeatures {
