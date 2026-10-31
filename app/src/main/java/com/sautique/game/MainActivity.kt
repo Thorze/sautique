@@ -5,15 +5,29 @@ import android.os.Bundle
 import android.view.WindowManager
 
 class MainActivity : Activity() {
+    private lateinit var game: GameView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        setContentView(GameView(this))
+        game = GameView(this)
+        setContentView(game)
         if (savedInstanceState == null) Updater.check(this)
     }
 
     override fun onResume() {
         super.onResume()
         Updater.onResume(this)
+        game.sounds.resumeMusic()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        game.sounds.pauseMusic()
+    }
+
+    override fun onDestroy() {
+        game.sounds.release()
+        super.onDestroy()
     }
 }

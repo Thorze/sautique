@@ -52,6 +52,36 @@ Les scores sont stockés sur ton VPS par un petit serveur fourni dans `server/`.
 Tant que ce n'est pas configuré, le jeu marche normalement et le top mondial
 affiche « Classement mondial non configuré ».
 
+## Sons et musique
+
+Dépose les fichiers dans `app/src/main/res/raw/` avec **exactement** ces noms
+(minuscules, sans accent ni espace ; formats `.ogg` conseillé, `.mp3` ou `.wav`).
+Tous sont facultatifs : un son absent est simplement ignoré.
+
+| Fichier | Quand |
+|---|---|
+| `musique` | musique de fond (en boucle) |
+| `saut` | au saut (plus aigu pour les grands sauts) |
+| `atterrissage` | atterrissage réussi |
+| `parfait` | atterrissage pile au centre |
+| `chute` | quand le personnage tombe |
+| `peur` | atterrissage tout au bord (« ! ») |
+| `effondrement` | une plateforme fragile s'écroule |
+| `bonus` | début d'un niveau bonus |
+| `bonus_gagne` / `bonus_rate` | fin du bonus |
+| `tape` | chaque tape du bonus Tape-tape |
+| `etoile` | étoile attrapée |
+| `roue` | « tic » de la roue de la fortune |
+| `deblocage` | nouvel élément de personnage débloqué |
+| `clic` | appui sur un bouton |
+
+Exemple : `app/src/main/res/raw/saut.ogg`. Les volumes des effets et de la musique se
+règlent dans le jeu (bouton 🔊 Son sur l'écran d'accueil).
+
+Sources libres de droits : [Kenney](https://kenney.nl/assets?q=audio) (CC0),
+[OpenGameArt](https://opengameart.org), [Freesound](https://freesound.org) (filtre CC0),
+[Pixabay](https://pixabay.com/music/) (musiques).
+
 ## Mises à jour automatiques
 
 Au lancement, le jeu regarde la dernière release GitHub de `Thorze/sautique`. Si elle est

@@ -31,7 +31,7 @@ import kotlin.random.Random
  */
 class GameView(context: Context) : View(context) {
 
-    private enum class State { READY, CHARGING, JUMPING, FALLING, BONUS, GAME_OVER, LEADERBOARD, CUSTOMIZE }
+    private enum class State { READY, CHARGING, JUMPING, FALLING, BONUS, GAME_OVER, LEADERBOARD, CUSTOMIZE, SETTINGS }
     private enum class FallAnim { SPIN, PANIC, PARACHUTE, CARTOON }
     private enum class JumpTrick { NONE, FRONTFLIP, BACKFLIP, PIROUETTE, TUCK }
     private enum class BonusType(val title: String, val hint: String) {
@@ -205,6 +205,12 @@ class GameView(context: Context) : View(context) {
     private var state = State.READY
     private var score = 0
     private val profile = LocalScores(context)
+    val sounds = Sounds(context)
+    private var lastWheelIdx = -1
+    private var settingsReturnState = State.READY
+    private val sfxSlider = RectF()
+    private val musicSlider = RectF()
+    private var dragSlider = 0          // 0 aucun, 1 effets, 2 musique
     private val online = ScoreServer(BuildConfig.SCORES_URL, BuildConfig.SCORES_KEY)
     private var best = profile.best
     private var newBest = false
@@ -558,10 +564,24 @@ class GameView(context: Context) : View(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
+            MotionEvent.ACTION_MOVE -> if (state == State.SETTINGS) dragTo(event.x)
             MotionEvent.ACTION_DOWN -> {
+                if (state == State.SETTINGS) {
+                    val pad = w * 0.06f
+                    dragSlider = when {
+                        event.y in sfxSlider.top - pad..sfxSlider.bottom + pad -> 1
+                        event.y in musicSlider.top - pad..musicSlider.bottom + pad -> 2
+                        else -> 0
+                    }
+                    if (dragSlider != 0) {
+                        dragTo(event.x)
+                        return true
+                    }
+                }
                 // Les boutons affichés passent avant le saut
                 val hit = buttons.firstOrNull { it.rect.contains(event.x, event.y) }
                 if (hit != null) {
+                    sounds.play(Sounds.Sfx.CLICK, 0.6f)
                     hit.action()
                     return true
                 }
@@ -575,6 +595,8 @@ class GameView(context: Context) : View(context) {
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (dragSlider == 1) sounds.play(Sounds.Sfx.LAND)
+                dragSlider = 0
                 if (state == State.CHARGING) startJump()
             }
         }
@@ -610,11 +632,25 @@ class GameView(context: Context) : View(context) {
         state = custReturnState
     }
 
+    private fun openSettings() {
+        if (state == State.SETTINGS) return
+        settingsReturnState = state
+        state = State.SETTINGS
+    }
+
+    private fun dragTo(x: Float) {
+        val r = if (dragSlider == 1) sfxSlider else if (dragSlider == 2) musicSlider else return
+        val v = ((x - r.left) / r.width()).coerceIn(0f, 1f)
+        val snapped = if (v < 0.03f) 0f else v
+        if (dragSlider == 1) sounds.soundVolume = snapped else sounds.musicVolume = snapped
+    }
+
     /** Le personnage rate : chute avec une animation choisie au hasard. */
     private fun startFall() {
         fallVy = 0f
         fallT = 0f
         fallAnim = FallAnim.values()[Random.nextInt(FallAnim.values().size)]
+        sounds.play(Sounds.Sfx.FALL)
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         state = State.FALLING
     }
@@ -640,6 +676,8 @@ class GameView(context: Context) : View(context) {
         wheelAngle = Random.nextFloat() * 360f
         wheelSpeed = 620f
         wheelStopping = false
+        lastWheelIdx = -1
+        sounds.play(Sounds.Sfx.BONUS_START)
         state = State.BONUS
     }
 
@@ -650,6 +688,7 @@ class GameView(context: Context) : View(context) {
             BonusType.MASH -> {
                 bonusTaps++
                 bonusPulse = 1f
+                sounds.play(Sounds.Sfx.TAP, 0.7f, 0.8f + min(bonusTaps, 40) * 0.02f)
             }
             BonusType.STARS -> {
                 val r = w * 0.1f
@@ -658,6 +697,7 @@ class GameView(context: Context) : View(context) {
                     stars.remove(hit)
                     bonusTaps++
                     sparkles.add(floatArrayOf(hit[0], hit[1], 0.5f))
+                    sounds.play(Sounds.Sfx.STAR, 1f, 0.9f + min(bonusTaps, 12) * 0.05f)
                     performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 }
             }
@@ -671,6 +711,7 @@ class GameView(context: Context) : View(context) {
         score += gain
         bonusResult = 1
         bonusResultT = 0f
+        sounds.play(if (gain > 0) Sounds.Sfx.BONUS_WIN else Sounds.Sfx.BONUS_LOSE)
         performHapticFeedback(if (gain > 0) HapticFeedbackConstants.VIRTUAL_KEY else HapticFeedbackConstants.LONG_PRESS)
     }
 
@@ -688,6 +729,7 @@ class GameView(context: Context) : View(context) {
         val before = profile.totalPoints
         newBest = profile.addRun(score)
         unlockedLabels = Skins.unlockedBetween(before, profile.totalPoints).map { it.label }
+        if (unlockedLabels.isNotEmpty()) postDelayed({ sounds.play(Sounds.Sfx.UNLOCK) }, 700)
         best = profile.best
         syncOnline()
     }
@@ -708,6 +750,7 @@ class GameView(context: Context) : View(context) {
     private fun checkScare(p: Platform): Boolean {
         if (p.edgeMargin(px, pz) >= scareMargin) return false
         scareT = scareDuration
+        sounds.play(Sounds.Sfx.SCARE)
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         return true
     }
@@ -719,6 +762,7 @@ class GameView(context: Context) : View(context) {
         jumpDuration = 0.35f + 0.3f * ratio
         jumpHeight = 0.6f + jumpDist * 0.3f
         jumpT = 0f
+        sounds.play(Sounds.Sfx.JUMP, 1f, 0.9f + 0.3f * ratio)
         // Petite figure en l'air sur les sauts assez longs
         val tricks = JumpTrick.values().filter { it != JumpTrick.NONE }
         jumpTrick = if (ratio < 0.3f) JumpTrick.NONE else tricks[Random.nextInt(tricks.size)]
@@ -736,7 +780,7 @@ class GameView(context: Context) : View(context) {
         if (scareT > 0f) scareT = (scareT - dt).coerceAtLeast(0f)
 
         // Plateformes fragiles (en pause pendant le bonus et après la partie)
-        if (state != State.BONUS && state != State.GAME_OVER && state != State.LEADERBOARD && state != State.CUSTOMIZE) {
+        if (state != State.BONUS && state != State.GAME_OVER && state != State.LEADERBOARD && state != State.CUSTOMIZE && state != State.SETTINGS) {
             for (p in platforms) {
                 if (p.collapsed) {
                     p.dropV += 30f * dt
@@ -746,6 +790,7 @@ class GameView(context: Context) : View(context) {
                     if (p.crumbleT >= p.crumbleDur) {
                         p.dropY = 0.001f
                         p.dropV = 0f
+                        sounds.play(Sounds.Sfx.CRUMBLE, 0.9f)
                         val standing = (state == State.READY || state == State.CHARGING) && p === current
                         if (standing) {
                             gameOverReason = "La plateforme s'est effondrée !"
@@ -817,6 +862,11 @@ class GameView(context: Context) : View(context) {
                         }
                         BonusType.WHEEL -> {
                             wheelAngle = (wheelAngle + wheelSpeed * dt) % 360f
+                            val wi = wheelIndex()
+                            if (wi != lastWheelIdx) {
+                                lastWheelIdx = wi
+                                sounds.play(Sounds.Sfx.WHEEL_TICK, 0.5f)
+                            }
                             if (t > 6f) wheelStopping = true
                             if (wheelStopping) {
                                 wheelSpeed *= kotlin.math.exp(-1.6f * dt)
@@ -836,7 +886,7 @@ class GameView(context: Context) : View(context) {
 
             State.GAME_OVER -> gameOverTime += dt
             State.CUSTOMIZE -> if (custMsgT > 0f) custMsgT -= dt
-            State.READY, State.LEADERBOARD -> {}
+            State.READY, State.LEADERBOARD, State.SETTINGS -> {}
         }
 
         val it = popups.iterator()
@@ -864,6 +914,7 @@ class GameView(context: Context) : View(context) {
                     )
                 )
                 if (!scared) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                sounds.play(if (perfect) Sounds.Sfx.PERFECT else Sounds.Sfx.LAND)
                 current = next
                 spawnNext()
                 updateCameraTarget()
@@ -873,6 +924,7 @@ class GameView(context: Context) : View(context) {
             current.contains(px, pz) -> {
                 // Saut trop court mais on reste sur sa plateforme : pas de point.
                 landSquash = 1f
+                sounds.play(Sounds.Sfx.LAND, 0.8f)
                 checkScare(current)
                 startCrumble(current)
                 state = State.READY
@@ -948,6 +1000,11 @@ class GameView(context: Context) : View(context) {
             drawButton(canvas, RectF(w * 0.67f, top, w * 0.97f, top + ch), "🏆 Classement", chipPaint, w * 0.036f) {
                 openBoard(world = false)
             }
+            val ty = top + ch + w * 0.025f
+            drawButton(canvas, RectF(w * 0.03f, ty, w * 0.33f, ty + ch),
+                (if (sounds.soundVolume > 0f || sounds.musicVolume > 0f) "🔊" else "🔇") + " Son", chipPaint, w * 0.036f) {
+                openSettings()
+            }
             val vy0 = h - w * 0.11f
             drawButton(canvas, RectF(w * 0.6f, vy0, w * 0.97f, vy0 + w * 0.075f), "🎨 Personnage", chipPaint, w * 0.034f) {
                 openCustomize()
@@ -963,6 +1020,7 @@ class GameView(context: Context) : View(context) {
         if (state == State.GAME_OVER) drawGameOver(canvas)
         if (state == State.LEADERBOARD) drawLeaderboard(canvas)
         if (state == State.CUSTOMIZE) drawCustomize(canvas)
+        if (state == State.SETTINGS) drawSettings(canvas)
 
         postInvalidateOnAnimation()
     }
@@ -1584,6 +1642,46 @@ class GameView(context: Context) : View(context) {
             val item = Skins.find(slot, profile.selected(slot))
             if (item.cost <= pts) item.id else Skins.default(slot)
         }
+    }
+
+    private fun drawSlider(canvas: Canvas, r: RectF, label: String, value: Float) {
+        darkTextPaint.textAlign = Paint.Align.LEFT
+        darkTextPaint.textSize = w * 0.05f
+        canvas.drawText(label, r.left, r.top - w * 0.05f, darkTextPaint)
+        darkTextPaint.textAlign = Paint.Align.RIGHT
+        canvas.drawText(if (value <= 0f) "Coupé" else "${(value * 100).toInt()} %", r.right, r.top - w * 0.05f, darkTextPaint)
+        val bh = r.height()
+        canvas.drawRoundRect(r, bh / 2, bh / 2, tabOffPaint)
+        rect.set(r.left, r.top, r.left + r.width() * value, r.bottom)
+        canvas.drawRoundRect(rect, bh / 2, bh / 2, primaryBtnPaint)
+        val kx = r.left + r.width() * value
+        canvas.drawCircle(kx, r.centerY(), bh * 1.1f, cursorPaint)
+        cursorStroke.strokeWidth = w * 0.006f
+        canvas.drawCircle(kx, r.centerY(), bh * 1.1f, cursorStroke)
+    }
+
+    private fun drawSettings(canvas: Canvas) {
+        canvas.drawRect(0f, 0f, w, h, overlayPaint)
+        val left = w * 0.06f
+        val right = w * 0.94f
+        val top = h * 0.25f
+        val bottom = top + w * 0.95f
+        rect.set(left, top, right, bottom)
+        canvas.drawRoundRect(rect, w * 0.05f, w * 0.05f, panelPaint)
+        darkTextPaint.textAlign = Paint.Align.CENTER
+        darkTextPaint.textSize = w * 0.07f
+        canvas.drawText("Son", w / 2f, top + w * 0.11f, darkTextPaint)
+
+        val sl = left + w * 0.08f
+        val sr = right - w * 0.08f
+        val bh = w * 0.035f
+        sfxSlider.set(sl, top + w * 0.3f, sr, top + w * 0.3f + bh)
+        musicSlider.set(sl, top + w * 0.55f, sr, top + w * 0.55f + bh)
+        drawSlider(canvas, sfxSlider, "Effets sonores", sounds.soundVolume)
+        drawSlider(canvas, musicSlider, "Musique", sounds.musicVolume)
+
+        drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.17f, w * 0.7f, bottom - w * 0.06f), "OK",
+            primaryBtnPaint, w * 0.05f) { state = settingsReturnState }
     }
 
     private fun drawCustomize(canvas: Canvas) {
