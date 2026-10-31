@@ -2,6 +2,7 @@ name: Build APK
 
 on:
   push:
+    branches: ["**"]
   workflow_dispatch:
 
 jobs:
@@ -16,6 +17,22 @@ jobs:
           java-version: "17"
 
       - uses: gradle/actions/setup-gradle@v4
+
+      - name: Clé de signature (si configurée)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/sautique.jks"
+            {
+              echo "SIGNING_STORE_FILE=$RUNNER_TEMP/sautique.jks"
+              echo "SIGNING_STORE_PASSWORD=$KEYSTORE_PASSWORD"
+              echo "SIGNING_KEY_PASSWORD=$KEYSTORE_PASSWORD"
+              echo "SIGNING_KEY_ALIAS=$KEY_ALIAS"
+            } >> "$GITHUB_ENV"
+          fi
 
       - name: Build debug APK
         env:

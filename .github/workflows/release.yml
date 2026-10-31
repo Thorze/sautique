@@ -1,0 +1,84 @@
+name: Release
+
+# Publie une nouvelle version : soit en poussant un tag (git tag v1.4 && git push origin v1.4),
+# soit depuis l'onglet Actions > Release > Run workflow en indiquant la version.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Numéro de version (ex. 1.4 ou 1.4.1)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then RAW="$GITHUB_REF_NAME"; else RAW="$INPUT_VERSION"; fi
+          VERSION="${RAW#v}"
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+(\.[0-9]+){0,2}$'; then
+            echo "::error::Version invalide : '$RAW' (attendu par ex. 1.4 ou 1.4.1)"; exit 1
+          fi
+          IFS=. read -r MAJ MIN PAT <<< "$VERSION"
+          CODE=$(( MAJ * 10000 + ${MIN:-0} * 100 + ${PAT:-0} ))
+          {
+            echo "VERSION_NAME=$VERSION"
+            echo "VERSION_CODE=$CODE"
+            echo "TAG=v$VERSION"
+          } >> "$GITHUB_ENV"
+          echo "Version $VERSION (code $CODE)"
+
+      - name: Clé de signature
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
+            echo "::error::Secrets KEYSTORE_BASE64, KEYSTORE_PASSWORD et KEY_ALIAS manquants (voir README)."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/sautique.jks"
+          {
+            echo "SIGNING_STORE_FILE=$RUNNER_TEMP/sautique.jks"
+            echo "SIGNING_STORE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "SIGNING_KEY_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "SIGNING_KEY_ALIAS=$KEY_ALIAS"
+          } >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        env:
+          SCORES_URL: ${{ secrets.SCORES_URL }}
+          SCORES_KEY: ${{ secrets.SCORES_KEY }}
+          UPDATE_REPO: ${{ github.repository }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk "Sautique-$VERSION_NAME.apk"
+
+      - name: Publier la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" "Sautique-$VERSION_NAME.apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Sautique $VERSION_NAME" \
+            --generate-notes

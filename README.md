@@ -42,12 +42,37 @@ Les scores sont stockés sur ton VPS par un petit serveur fourni dans `server/`.
 Tant que ce n'est pas configuré, le jeu marche normalement et le top mondial
 affiche « Classement mondial non configuré ».
 
+## Mises à jour automatiques
+
+Au lancement, le jeu regarde la dernière release GitHub de `Thorze/sautique`. Si elle est
+plus récente, il propose de la télécharger et de l'installer (Android demande une fois
+l'autorisation « installer des applis inconnues »). Toucher le numéro de version en bas à
+gauche de l'écran d'accueil relance la vérification.
+
+Prérequis (une seule fois) :
+
+1. Le dépôt doit être **public** : Settings > General > Danger Zone > Change visibility.
+2. Trois secrets GitHub (Settings > Secrets and variables > Actions) pour la clé de
+   signature fixe : `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`. Toutes les versions
+   doivent être signées avec la même clé, sinon Android refuse la mise à jour.
+   **Garde une copie de cette clé** : si elle est perdue, il faudra désinstaller l'appli
+   sur tous les téléphones.
+
+### Publier une nouvelle version
+
+- Onglet **Actions** > **Release** > **Run workflow**, saisis la version (ex. `1.5`) ;
+- ou en ligne de commande : `git tag v1.5 && git push origin v1.5`.
+
+Le workflow compile l'APK signé et crée la release `v1.5` avec le fichier
+`Sautique-1.5.apk`. Les numéros doivent toujours augmenter (1.4 → 1.5 → 1.5.1 → 2.0).
+
 ## Récupérer l'APK
 
-Chaque push lance le workflow GitHub Actions **Build APK**. Ouvre l'onglet
-*Actions* du dépôt, choisis la dernière exécution et télécharge l'artefact
-`sautique-apk` (un zip contenant `app-debug.apk`). Copie l'APK sur ton téléphone
-et installe-le (autorise « sources inconnues » si demandé).
+Installe l'APK de la dernière [release](https://github.com/Thorze/sautique/releases/latest).
+Ensuite, les mises à jour se font depuis le jeu.
+
+Pour tester une version en cours de développement : chaque push lance aussi le workflow
+**Build APK**, qui produit l'artefact `sautique-apk` (`app-debug.apk`).
 
 ## Compiler en local
 

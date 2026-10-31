@@ -9,5 +9,11 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(GameView(this))
+        if (savedInstanceState == null) Updater.check(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Updater.onResume(this)
     }
 }

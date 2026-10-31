@@ -767,6 +767,11 @@ class GameView(context: Context) : View(context) {
             drawButton(canvas, RectF(w * 0.67f, top, w * 0.97f, top + ch), "🏆 Classement", chipPaint, w * 0.036f) {
                 openBoard(world = false)
             }
+            // Version (toucher = vérifier les mises à jour)
+            val vy = h - w * 0.11f
+            drawButton(canvas, RectF(w * 0.03f, vy, w * 0.3f, vy + w * 0.075f), "v" + BuildConfig.VERSION_NAME, chipPaint, w * 0.032f) {
+                (context as? android.app.Activity)?.let { Updater.check(it, manual = true) }
+            }
         }
 
         if (state == State.BONUS) drawBonus(canvas)

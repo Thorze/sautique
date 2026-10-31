@@ -11,8 +11,9 @@ android {
         applicationId = "com.sautique.game"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.3"
+        // Fournis par le workflow de release à partir du tag (v1.4 -> 1.4 / 10400)
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 4
+        versionName = System.getenv("VERSION_NAME") ?: "1.3-dev"
 
         // Serveur de scores : variable d'environnement (secret GitHub) ou gradle.properties.
         fun setting(name: String): String =
@@ -21,17 +22,36 @@ android {
                 ?: ""
         buildConfigField("String", "SCORES_URL", "\"${setting("SCORES_URL")}\"")
         buildConfigField("String", "SCORES_KEY", "\"${setting("SCORES_KEY")}\"")
+        // Dépôt GitHub dont les releases servent aux mises à jour automatiques
+        buildConfigField("String", "UPDATE_REPO", "\"${setting("UPDATE_REPO").ifBlank { "Thorze/sautique" }}\"")
     }
 
     buildFeatures {
         buildConfig = true
     }
 
+    // Clé de signature fixe (secrets GitHub) : indispensable pour que les mises à jour s'installent
+    // par-dessus la version existante. Sans elle, on retombe sur la clé de debug.
+    val keystorePath = System.getenv("SIGNING_STORE_FILE")
+    signingConfigs {
+        if (!keystorePath.isNullOrBlank()) {
+            create("sautique") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
+        val signing = signingConfigs.findByName("sautique") ?: signingConfigs.getByName("debug")
         release {
             isMinifyEnabled = false
-            // Signé avec la clé de debug pour pouvoir l'installer directement.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signing
+        }
+        debug {
+            signingConfig = signing
         }
     }
 
