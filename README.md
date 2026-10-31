@@ -22,6 +22,9 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
   parties s'additionnent et débloquent de nouveaux éléments.
 - Chaque chute joue une animation au hasard : vrille, panique, parachute qui craque,
   ou pause « dessin animé » avant de tomber.
+- **Barre Perfect** : à partir du 3e atterrissage parfait d'affilée, une barre apparaît et
+  chaque parfait suivant rapporte plus (+2, +3, +4, puis +5). Un atterrissage non parfait
+  arrête la série.
 - Atterrir tout au bord fait **trembler** le personnage, avec un « ! » de frayeur.
 - Les plateformes (cubes ou cylindres) rétrécissent au fil des points et apparaissent
   tantôt vers la droite, tantôt vers la gauche.

@@ -267,6 +267,15 @@ class GameView(context: Context) : View(context) {
     private var scareT = 0f
     private var crumbleHintShown = false
 
+    // Série de parfaits : la barre « Perfect » apparaît à partir du 3e d'affilée
+    private var perfectStreak = 0
+    private var perfectBarAlpha = 0f
+    private var perfectPulse = 0f
+    private var lastPerfectPoints = 2
+    private var shownStreak = 3          // valeur affichée pendant que la barre disparaît
+    private val perfectBarPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val perfectBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(110, 30, 30, 50) }
+
     // Bonus : curseur entre -1 et 1, zone verte entre -bonusGreen et +bonusGreen
     private var bonusCount = 0
     private var bonusT = 0f
@@ -440,6 +449,8 @@ class GameView(context: Context) : View(context) {
         bonusCount = 0
         scareT = 0f
         crumbleHintShown = false
+        perfectStreak = 0
+        perfectBarAlpha = 0f
         gameOverReason = null
         newBest = false
         charge = 0f
@@ -676,6 +687,7 @@ class GameView(context: Context) : View(context) {
         fallVy = 0f
         fallT = 0f
         fallAnim = FallAnim.values()[Random.nextInt(FallAnim.values().size)]
+        perfectStreak = 0
         sounds.play(Sounds.Sfx.FALL)
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         state = State.FALLING
@@ -806,6 +818,9 @@ class GameView(context: Context) : View(context) {
         camX += (camTargetX - camX) * c
         camY += (camTargetY - camY) * c
         if (scareT > 0f) scareT = (scareT - dt).coerceAtLeast(0f)
+        if (perfectPulse > 0f) perfectPulse = (perfectPulse - dt * 3f).coerceAtLeast(0f)
+        val barTarget = if (perfectStreak >= 3) 1f else 0f
+        perfectBarAlpha += (barTarget - perfectBarAlpha) * min(1f, dt * 8f)
 
         // Plateformes fragiles (en pause pendant le bonus et après la partie)
         if (state != State.BONUS && state != State.GAME_OVER && state != State.LEADERBOARD && state != State.CUSTOMIZE && state != State.SETTINGS) {
@@ -929,18 +944,28 @@ class GameView(context: Context) : View(context) {
         }
     }
 
+    /** Points d'un saut : 1, puis +2, +3, +4 et +5 max à partir du 3e parfait d'affilée. */
+    private fun perfectPoints(streak: Int) = if (streak >= 3) min(streak - 1, 5) else 1
+
     private fun land() {
         py = 0f
         when {
             next.contains(px, pz) -> {
-                score++
                 jumps++
                 landSquash = 1f
                 val scared = checkScare(next)
                 val perfect = !scared && abs(px - next.cx) < 0.13f && abs(pz - next.cz) < 0.13f
+                perfectStreak = if (perfect) perfectStreak + 1 else 0
+                val points = perfectPoints(perfectStreak)
+                if (perfect && perfectStreak >= 3) {
+                    perfectPulse = 1f
+                    lastPerfectPoints = points
+                    shownStreak = perfectStreak
+                }
+                score += points
                 popups.add(
                     Popup(
-                        if (perfect) "Parfait ! +1" else "+1",
+                        if (perfect) "Parfait ! +$points" else "+1",
                         sx(px, pz) + camX, sy(px, playerHeight * 2.2f, pz) + camY, 0.8f
                     )
                 )
@@ -958,8 +983,9 @@ class GameView(context: Context) : View(context) {
                 if (jumps % bonusEvery == 0) startBonus() else state = State.READY
             }
             current.contains(px, pz) -> {
-                // Saut trop court mais on reste sur sa plateforme : pas de point.
+                // Saut trop court mais on reste sur sa plateforme : pas de point, la série s'arrête.
                 landSquash = 1f
+                perfectStreak = 0
                 sounds.play(Sounds.Sfx.LAND, 0.8f)
                 checkScare(current)
                 startCrumble(current)
@@ -1052,6 +1078,7 @@ class GameView(context: Context) : View(context) {
             }
         }
 
+        if (perfectBarAlpha > 0.02f && state != State.GAME_OVER) drawPerfectBar(canvas)
         if (state == State.BONUS) drawBonus(canvas)
         if (state == State.GAME_OVER) drawGameOver(canvas)
         if (state == State.LEADERBOARD) drawLeaderboard(canvas)
@@ -1167,6 +1194,39 @@ class GameView(context: Context) : View(context) {
         // Retour
         drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.15f, w * 0.7f, bottom - w * 0.05f), "Retour",
             primaryBtnPaint, w * 0.045f) { state = boardReturnState }
+    }
+
+    /** Barre « Perfect » sous le score, qui se remplit à chaque parfait enchaîné. */
+    private fun drawPerfectBar(canvas: Canvas) {
+        val a = perfectBarAlpha.coerceIn(0f, 1f)
+        val scale = 1f + 0.12f * perfectPulse
+        val cx = w / 2f
+        val cy = insetTop + h * 0.17f + w * 0.17f
+        val bw = w * 0.62f * scale
+        val bh = w * 0.085f * scale
+        canvas.save()
+        canvas.translate(cx, cy)
+        rect.set(-bw / 2f, -bh / 2f, bw / 2f, bh / 2f)
+        perfectBgPaint.alpha = (110 * a).toInt()
+        canvas.drawRoundRect(rect, bh / 2f, bh / 2f, perfectBgPaint)
+        // Remplissage : 3e parfait = 1/4 … 6e et plus = barre pleine
+        val level = ((shownStreak.coerceAtLeast(3) - 2) / 4f).coerceIn(0f, 1f)
+        val fillW = (bw - bh * 0.3f) * level
+        if (fillW > 0f) {
+            rect.set(-bw / 2f + bh * 0.15f, -bh / 2f + bh * 0.15f, -bw / 2f + bh * 0.15f + fillW, bh / 2f - bh * 0.15f)
+            perfectBarPaint.shader = LinearGradient(
+                rect.left, 0f, rect.right.coerceAtLeast(rect.left + 1f), 0f,
+                Color.parseColor("#FFD54F"), Color.parseColor("#FF7A45"), Shader.TileMode.CLAMP
+            )
+            perfectBarPaint.alpha = (255 * a).toInt()
+            canvas.drawRoundRect(rect, bh * 0.35f, bh * 0.35f, perfectBarPaint)
+        }
+        val points = if (perfectStreak >= 3) perfectPoints(perfectStreak) else lastPerfectPoints
+        textPaint.textSize = bh * 0.55f
+        textPaint.alpha = (255 * a).toInt()
+        canvas.drawText("PERFECT  ×$shownStreak   +$points", 0f, -(textPaint.descent() + textPaint.ascent()) / 2f, textPaint)
+        textPaint.alpha = 255
+        canvas.restore()
     }
 
     private fun drawStar(canvas: Canvas, x: Float, y: Float, r: Float, paint: Paint) {
