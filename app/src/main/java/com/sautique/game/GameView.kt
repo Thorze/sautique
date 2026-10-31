@@ -306,6 +306,11 @@ class GameView(context: Context) : View(context) {
     private var w = 0f
     private var h = 0f
     private var k = 1f   // pixels par unité du monde
+    // Zones occupées par les barres système (encoche en haut, boutons de navigation en bas)
+    private var insetTop = 0f
+    private var insetBottom = 0f
+    /** Bas de la zone utilisable, au-dessus des boutons de navigation. */
+    private val ub get() = h - insetBottom
     private var lastFrameNs = 0L
 
     // --- Peintures ---
@@ -473,8 +478,29 @@ class GameView(context: Context) : View(context) {
         camTargetY = isoY(mx, 0f, mz)
     }
 
+    override fun onApplyWindowInsets(insets: android.view.WindowInsets): android.view.WindowInsets {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            val bars = insets.getInsets(
+                android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout()
+            )
+            insetTop = bars.top.toFloat()
+            insetBottom = bars.bottom.toFloat()
+        } else {
+            @Suppress("DEPRECATION")
+            insetTop = insets.systemWindowInsetTop.toFloat()
+            @Suppress("DEPRECATION")
+            insetBottom = insets.systemWindowInsetBottom.toFloat()
+        }
+        return super.onApplyWindowInsets(insets)
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        requestApplyInsets()
+        onAttachedToWindowGame()
+    }
+
+    private fun onAttachedToWindowGame() {
         if (profile.pseudo.isNullOrBlank()) {
             post { askPseudo(first = true) }
         } else {
@@ -989,21 +1015,21 @@ class GameView(context: Context) : View(context) {
         textPaint.alpha = 255
 
         // Score en haut et en gros
-        canvas.drawText(score.toString(), w / 2f, h * 0.17f, scorePaint)
+        canvas.drawText(score.toString(), w / 2f, insetTop + h * 0.17f, scorePaint)
         textPaint.textSize = w * 0.045f
-        canvas.drawText("Record : $best", w / 2f, h * 0.17f + w * 0.08f, textPaint)
+        canvas.drawText("Record : $best", w / 2f, insetTop + h * 0.17f + w * 0.08f, textPaint)
 
         buttons.clear()
 
         if (state == State.READY && score == 0) {
             textPaint.textSize = w * 0.05f
-            canvas.drawText("Maintiens appuyé pour sauter", w / 2f, h * 0.88f, textPaint)
+            canvas.drawText("Maintiens appuyé pour sauter", w / 2f, ub - w * 0.27f, textPaint)
             textPaint.textSize = w * 0.04f
-            canvas.drawText("plus longtemps = plus loin", w / 2f, h * 0.88f + w * 0.07f, textPaint)
+            canvas.drawText("plus longtemps = plus loin", w / 2f, ub - w * 0.2f, textPaint)
 
             // Raccourcis en haut : pseudo à gauche, classement à droite
             val ch = w * 0.085f
-            val top = w * 0.04f
+            val top = insetTop + w * 0.04f
             drawButton(canvas, RectF(w * 0.03f, top, w * 0.33f, top + ch), "✎ " + (profile.pseudo ?: "Pseudo"), chipPaint, w * 0.036f) {
                 askPseudo(first = false)
             }
@@ -1015,12 +1041,12 @@ class GameView(context: Context) : View(context) {
                 (if (sounds.soundVolume > 0f || sounds.musicVolume > 0f) "🔊" else "🔇") + " Son", chipPaint, w * 0.036f) {
                 openSettings()
             }
-            val vy0 = h - w * 0.11f
+            val vy0 = ub - w * 0.11f
             drawButton(canvas, RectF(w * 0.6f, vy0, w * 0.97f, vy0 + w * 0.075f), "🎨 Personnage", chipPaint, w * 0.034f) {
                 openCustomize()
             }
             // Version (toucher = vérifier les mises à jour)
-            val vy = h - w * 0.11f
+            val vy = ub - w * 0.11f
             drawButton(canvas, RectF(w * 0.03f, vy, w * 0.3f, vy + w * 0.075f), "v" + BuildConfig.VERSION_NAME, chipPaint, w * 0.032f) {
                 (context as? android.app.Activity)?.let { Updater.check(it, manual = true) }
             }
@@ -1060,8 +1086,8 @@ class GameView(context: Context) : View(context) {
         canvas.drawRect(0f, 0f, w, h, overlayPaint)
         val left = w * 0.06f
         val right = w * 0.94f
-        val top = h * 0.08f
-        val bottom = h * 0.92f
+        val top = insetTop + h * 0.05f
+        val bottom = ub - h * 0.03f
         rect.set(left, top, right, bottom)
         canvas.drawRoundRect(rect, w * 0.05f, w * 0.05f, panelPaint)
 
@@ -1230,8 +1256,8 @@ class GameView(context: Context) : View(context) {
                 }
                 starPaint.alpha = 255
                 textPaint.textSize = w * 0.06f
-                canvas.drawText("★ $bonusTaps", w / 2f, h * 0.84f, textPaint)
-                drawTimeBar(canvas, h * 0.86f, 1f - t / starsDuration)
+                canvas.drawText("★ $bonusTaps", w / 2f, ub - w * 0.2f, textPaint)
+                drawTimeBar(canvas, ub - w * 0.16f, 1f - t / starsDuration)
             }
             BonusType.WHEEL -> {
                 val r = w * 0.34f
@@ -1273,7 +1299,7 @@ class GameView(context: Context) : View(context) {
         }
         if (msg.isNotEmpty()) {
             textPaint.textSize = w * 0.085f
-            val my = if (bonusType == BonusType.STARS) h * 0.55f else h * 0.93f
+            val my = if (bonusType == BonusType.STARS) h * 0.55f else ub - w * 0.08f
             canvas.drawText(msg, w / 2f, my, textPaint)
         }
     }
@@ -1698,8 +1724,8 @@ class GameView(context: Context) : View(context) {
         canvas.drawRect(0f, 0f, w, h, overlayPaint)
         val left = w * 0.04f
         val right = w * 0.96f
-        val top = h * 0.05f
-        val bottom = h * 0.95f
+        val top = insetTop + h * 0.03f
+        val bottom = ub - h * 0.02f
         rect.set(left, top, right, bottom)
         canvas.drawRoundRect(rect, w * 0.05f, w * 0.05f, panelPaint)
 
