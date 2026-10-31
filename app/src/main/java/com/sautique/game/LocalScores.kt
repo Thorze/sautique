@@ -28,6 +28,29 @@ class LocalScores(context: Context) {
         get() = prefs.getString("synced_pseudo", null)
         set(value) = prefs.edit().putString("synced_pseudo", value).apply()
 
+    /** Points cumulés sur toutes les parties : servent à débloquer les skins. */
+    var totalPoints: Int
+        get() {
+            if (!prefs.contains("total_points")) {
+                // Première fois : on part des parties déjà jouées
+                val seed = topRuns().sumOf { it.score }
+                prefs.edit().putInt("total_points", seed).apply()
+                return seed
+            }
+            return prefs.getInt("total_points", 0)
+        }
+        set(value) = prefs.edit().putInt("total_points", value).apply()
+
+    /** true une fois que le joueur a vu l'écran de choix du personnage. */
+    var customized: Boolean
+        get() = prefs.getBoolean("customized", false)
+        set(value) = prefs.edit().putBoolean("customized", value).apply()
+
+    fun selected(slot: Skins.Slot): String =
+        prefs.getString("skin_" + slot.key, null) ?: Skins.default(slot)
+
+    fun select(slot: Skins.Slot, id: String) = prefs.edit().putString("skin_" + slot.key, id).apply()
+
     fun needsSync() = best > 0 && (best > syncedBest || pseudo != syncedPseudo)
 
     fun topRuns(): List<Run> {
@@ -44,6 +67,7 @@ class LocalScores(context: Context) {
     /** Enregistre une partie. Renvoie true si c'est un nouveau record. */
     fun addRun(score: Int): Boolean {
         if (score <= 0) return false
+        totalPoints += score
         val runs = (topRuns() + Run(score, System.currentTimeMillis()))
             .sortedWith(compareByDescending<Run> { it.score }.thenBy { it.time })
             .take(MAX_RUNS)

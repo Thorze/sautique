@@ -8,10 +8,16 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
 - Saut trop court sur ta propre plateforme : pas de point, tu peux réessayer.
 - Tomber dans le vide = partie terminée. Le record est sauvegardé.
 - **Bonus** tous les 10 sauts réussis : un curseur va et vient sur une barre rouge avec une
-  zone verte au milieu. Touche l'écran quand il est dans le vert : +5 points. Sinon, perdu !
+  zone verte au milieu. Touche l'écran quand il est dans le vert : +5 points. Raté : pas de
+  bonus, mais la partie continue.
   Le curseur accélère et la zone verte rétrécit à chaque bonus.
 - À partir de 25 points apparaissent des **plateformes fragiles** (fissurées) : dès que tu
   atterris dessus elles tremblent puis s'effondrent, il faut ressauter vite.
+- **Personnage** : choisis ta forme (cube, boule, cylindre, tour), ta couleur et tes
+  accessoires (lunettes, chapeau, chaussures) via le bouton 🎨. Les points de toutes tes
+  parties s'additionnent et débloquent de nouveaux éléments.
+- Chaque chute joue une animation au hasard : vrille, panique, parachute qui craque,
+  ou pause « dessin animé » avant de tomber.
 - Atterrir tout au bord fait **trembler** le personnage, avec un « ! » de frayeur.
 - Les plateformes (cubes ou cylindres) rétrécissent au fil des points et apparaissent
   tantôt vers la droite, tantôt vers la gauche.

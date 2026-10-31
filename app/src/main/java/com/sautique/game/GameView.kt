@@ -31,7 +31,8 @@ import kotlin.random.Random
  */
 class GameView(context: Context) : View(context) {
 
-    private enum class State { READY, CHARGING, JUMPING, FALLING, BONUS, GAME_OVER, LEADERBOARD }
+    private enum class State { READY, CHARGING, JUMPING, FALLING, BONUS, GAME_OVER, LEADERBOARD, CUSTOMIZE }
+    private enum class FallAnim { SPIN, PANIC, PARACHUTE, CARTOON }
     private enum class WorldStatus { IDLE, LOADING, OK, ERROR, NOT_CONFIGURED }
 
     /** Bouton dessiné sur le canvas. */
@@ -227,6 +228,21 @@ class GameView(context: Context) : View(context) {
     private var jumpDist = 0f
     private var jumpHeight = 0f
     private var fallVy = 0f
+    private var fallT = 0f
+    private var fallAnim = FallAnim.SPIN
+
+    // Apparence du personnage
+    private var lookShape = "cube"
+    private var lookGlasses = Skins.NONE
+    private var lookHat = Skins.NONE
+    private var lookShoes = Skins.NONE
+    private var unlockedLabels: List<String> = emptyList()
+
+    // Ecran Personnage
+    private var custSlot = Skins.Slot.SHAPE
+    private var custReturnState = State.READY
+    private var custMsg = ""
+    private var custMsgT = 0f
     private var landSquash = 0f
     private var gameOverTime = 0f
     private var gameOverReason: String? = null
@@ -264,6 +280,22 @@ class GameView(context: Context) : View(context) {
     private val playerTop = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FFA270") }
     private val playerLeft = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#FF7A45") }
     private val playerRight = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#D95B2B") }
+    private val accPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val accStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
+    private val lockedPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#C9CED8") }
+    private val itemPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val bubbleTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#2E3A59")
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+    private val bubbleStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = Color.parseColor("#2E3A59")
+    }
     private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(60, 0, 0, 0) }
     private val eyeWhitePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
     private val pupilPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#1B1B1B") }
@@ -354,6 +386,7 @@ class GameView(context: Context) : View(context) {
             Shader.TileMode.CLAMP
         )
         scorePaint.textSize = w * 0.24f
+        loadLook()
         resetGame()
     }
 
@@ -413,6 +446,7 @@ class GameView(context: Context) : View(context) {
             post { askPseudo(first = true) }
         } else {
             syncOnline()
+            if (!profile.customized) post { openCustomize() }
         }
     }
 
@@ -444,6 +478,7 @@ class GameView(context: Context) : View(context) {
                     profile.pseudo.isNullOrBlank() -> profile.pseudo = "Joueur" + Random.nextInt(1000, 10000)
                 }
                 syncOnline()
+                if (!profile.customized) openCustomize()
             }
             .apply { if (!first) setNegativeButton("Annuler", null) }
             .setOnDismissListener { pseudoDialogShown = false }
@@ -519,6 +554,44 @@ class GameView(context: Context) : View(context) {
         return true
     }
 
+    /** Charge l'apparence choisie (et repasse sur un élément gratuit s'il n'est plus débloqué). */
+    private fun loadLook() {
+        val pts = profile.totalPoints
+        fun pick(slot: Skins.Slot): String {
+            val item = Skins.find(slot, profile.selected(slot))
+            return if (item.cost <= pts) item.id else Skins.default(slot)
+        }
+        lookShape = pick(Skins.Slot.SHAPE)
+        lookGlasses = pick(Skins.Slot.GLASSES)
+        lookHat = pick(Skins.Slot.HAT)
+        lookShoes = pick(Skins.Slot.SHOES)
+        val c = Skins.find(Skins.Slot.COLOR, pick(Skins.Slot.COLOR)).color
+        playerTop.color = shade(c, 1.18f)
+        playerLeft.color = c
+        playerRight.color = shade(c, 0.78f)
+    }
+
+    private fun openCustomize() {
+        if (state == State.CUSTOMIZE) return
+        custReturnState = state
+        custMsg = ""
+        state = State.CUSTOMIZE
+    }
+
+    private fun closeCustomize() {
+        profile.customized = true
+        state = custReturnState
+    }
+
+    /** Le personnage rate : chute avec une animation choisie au hasard. */
+    private fun startFall() {
+        fallVy = 0f
+        fallT = 0f
+        fallAnim = FallAnim.values()[Random.nextInt(FallAnim.values().size)]
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        state = State.FALLING
+    }
+
     private fun startBonus() {
         bonusCount++
         bonusGreen = maxOf(0.08f, 0.28f - 0.04f * (bonusCount - 1))
@@ -548,7 +621,9 @@ class GameView(context: Context) : View(context) {
         state = State.GAME_OVER
         gameOverTime = 0f
         gameOverReason = reason
+        val before = profile.totalPoints
         newBest = profile.addRun(score)
+        unlockedLabels = Skins.unlockedBetween(before, profile.totalPoints).map { it.label }
         best = profile.best
         syncOnline()
     }
@@ -594,7 +669,7 @@ class GameView(context: Context) : View(context) {
         if (scareT > 0f) scareT = (scareT - dt).coerceAtLeast(0f)
 
         // Plateformes fragiles (en pause pendant le bonus et après la partie)
-        if (state != State.BONUS && state != State.GAME_OVER && state != State.LEADERBOARD) {
+        if (state != State.BONUS && state != State.GAME_OVER && state != State.LEADERBOARD && state != State.CUSTOMIZE) {
             for (p in platforms) {
                 if (p.collapsed) {
                     p.dropV += 30f * dt
@@ -606,10 +681,8 @@ class GameView(context: Context) : View(context) {
                         p.dropV = 0f
                         val standing = (state == State.READY || state == State.CHARGING) && p === current
                         if (standing) {
-                            fallVy = 0f
                             gameOverReason = "La plateforme s'est effondrée !"
-                            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            state = State.FALLING
+                            startFall()
                         }
                     }
                 }
@@ -629,9 +702,21 @@ class GameView(context: Context) : View(context) {
             }
 
             State.FALLING -> {
-                fallVy += 30f * dt
+                fallT += dt
+                when (fallAnim) {
+                    // Reste suspendu en l'air un instant, regarde la caméra… puis tombe
+                    FallAnim.CARTOON -> if (fallT > 0.8f) fallVy += 45f * dt
+                    // Le parachute s'ouvre, freine… puis se déchire
+                    FallAnim.PARACHUTE -> if (fallT > 0.25f && fallT < 1.9f) {
+                        fallVy += (1.4f - fallVy) * min(1f, dt * 6f)
+                    } else {
+                        fallVy += 30f * dt
+                    }
+                    FallAnim.PANIC -> fallVy += 22f * dt
+                    FallAnim.SPIN -> fallVy += 30f * dt
+                }
                 py -= fallVy * dt
-                if (sy(px, py + playerHeight, pz) > h) endGame(gameOverReason)
+                if (sy(px, py + 1.2f, pz) > h) endGame(gameOverReason)
             }
 
             State.BONUS -> {
@@ -645,12 +730,14 @@ class GameView(context: Context) : View(context) {
                 } else {
                     bonusResultT += dt
                     if (bonusResultT > 1.0f) {
-                        if (bonusResult > 0) state = State.READY else endGame("Bonus raté !")
+                        // Bonus raté : pas de points en plus, mais la partie continue
+                        state = State.READY
                     }
                 }
             }
 
             State.GAME_OVER -> gameOverTime += dt
+            State.CUSTOMIZE -> if (custMsgT > 0f) custMsgT -= dt
             State.READY, State.LEADERBOARD -> {}
         }
 
@@ -692,11 +779,7 @@ class GameView(context: Context) : View(context) {
                 startCrumble(current)
                 state = State.READY
             }
-            else -> {
-                fallVy = 0f
-                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                state = State.FALLING
-            }
+            else -> startFall()
         }
     }
 
@@ -767,6 +850,10 @@ class GameView(context: Context) : View(context) {
             drawButton(canvas, RectF(w * 0.67f, top, w * 0.97f, top + ch), "🏆 Classement", chipPaint, w * 0.036f) {
                 openBoard(world = false)
             }
+            val vy0 = h - w * 0.11f
+            drawButton(canvas, RectF(w * 0.6f, vy0, w * 0.97f, vy0 + w * 0.075f), "🎨 Personnage", chipPaint, w * 0.034f) {
+                openCustomize()
+            }
             // Version (toucher = vérifier les mises à jour)
             val vy = h - w * 0.11f
             drawButton(canvas, RectF(w * 0.03f, vy, w * 0.3f, vy + w * 0.075f), "v" + BuildConfig.VERSION_NAME, chipPaint, w * 0.032f) {
@@ -777,6 +864,7 @@ class GameView(context: Context) : View(context) {
         if (state == State.BONUS) drawBonus(canvas)
         if (state == State.GAME_OVER) drawGameOver(canvas)
         if (state == State.LEADERBOARD) drawLeaderboard(canvas)
+        if (state == State.CUSTOMIZE) drawCustomize(canvas)
 
         postInvalidateOnAnimation()
     }
@@ -786,11 +874,14 @@ class GameView(context: Context) : View(context) {
         val radius = r.height() / 2f
         canvas.drawRoundRect(r, radius, radius, bg)
         btnTextPaint.textSize = textSize
-        btnTextPaint.color = if (bg === tabOffPaint) Color.parseColor("#2E3A59") else Color.WHITE
+        btnTextPaint.color = if (bg === tabOffPaint || bg === lockedPaint || (bg === itemPaint && isLight(bg.color)))
+            Color.parseColor("#2E3A59") else Color.WHITE
         val label2 = ellipsize(label, btnTextPaint, r.width() - radius)
         canvas.drawText(label2, r.centerX(), r.centerY() - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2f, btnTextPaint)
         buttons.add(Button(RectF(r), action))
     }
+
+    private fun isLight(c: Int) = Color.red(c) * 0.3f + Color.green(c) * 0.59f + Color.blue(c) * 0.11f > 170f
 
     private fun ellipsize(text: String, paint: Paint, maxWidth: Float): String {
         if (paint.measureText(text) <= maxWidth) return text
@@ -916,7 +1007,7 @@ class GameView(context: Context) : View(context) {
 
         val msg = when {
             bonusResult > 0 -> "Bravo ! +$bonusReward"
-            bonusResult < 0 -> "Raté !"
+            bonusResult < 0 -> "Raté… on continue !"
             bonusT < bonusIntro -> "Prêt ?"
             else -> ""
         }
@@ -924,6 +1015,13 @@ class GameView(context: Context) : View(context) {
             textPaint.textSize = w * 0.09f
             canvas.drawText(msg, w / 2f, cy + w * 0.25f, textPaint)
         }
+    }
+
+    /** Hauteur du corps selon la forme choisie. */
+    private fun shapeHeight(scaleH: Float) = scaleH * when (lookShape) {
+        "tour" -> 0.82f
+        "boule" -> 0.58f
+        else -> playerHeight
     }
 
     private fun drawPlayer(canvas: Canvas) {
@@ -951,63 +1049,417 @@ class GameView(context: Context) : View(context) {
             scaleH = 1.1f
             scaleW = 0.95f
         }
-        val a = playerHalf * scaleW
-        val hgt = playerHeight * scaleH
-        val y0 = py
-        val y1 = py + hgt
 
-        // Tremblement de peur
         val scared = scareT > 0f
-        val trembleX = if (scared) sin(time * 75f) * k * 0.035f * (scareT / scareDuration).coerceAtLeast(0.3f) else 0f
+        var ox = sx(px, pz)
+        val oy = sy(px, 0f, pz)
+        if (scared) ox += sin(time * 75f) * k * 0.035f * (scareT / scareDuration).coerceAtLeast(0.3f)
+
+        // Animation de chute
+        val falling = state == State.FALLING
+        var rotation = 0f
+        var panic = false
+        var front = false
+        val chute = falling && fallAnim == FallAnim.PARACHUTE && fallT > 0.25f && fallT < 1.9f
+        if (falling) when (fallAnim) {
+            FallAnim.SPIN -> rotation = fallT * 620f * (if (alongX) 1f else -1f)
+            FallAnim.PANIC -> {
+                panic = true
+                ox += sin(time * 70f) * k * 0.05f
+            }
+            FallAnim.PARACHUTE -> if (chute) rotation = sin(fallT * 5f) * 10f
+            FallAnim.CARTOON -> front = fallT < 1.1f
+        }
+        val bodyH = shapeHeight(scaleH)
 
         canvas.save()
-        canvas.translate(sx(px, pz) + trembleX, sy(px, 0f, pz))
-        // face gauche (x min), face droite (z min), dessus
-        quad(tmpPath, -a, y1, a, -a, y1, -a, -a, y0, -a, -a, y0, a)
-        canvas.drawPath(tmpPath, playerLeft)
-        quad(tmpPath, -a, y1, -a, a, y1, -a, a, y0, -a, -a, y0, -a)
-        canvas.drawPath(tmpPath, playerRight)
-        quad(tmpPath, -a, y1, -a, a, y1, -a, a, y1, a, -a, y1, a)
-        canvas.drawPath(tmpPath, playerTop)
+        if (rotation != 0f) canvas.rotate(rotation, ox, oy + isoY(0f, py + bodyH / 2f, 0f))
+        if (chute) drawParachute(canvas, ox, oy + isoY(0f, py + bodyH, 0f))
+        drawCharacter(canvas, ox, oy, py, scaleW, scaleH, alongX, scared || panic, front)
+        canvas.restore()
 
-        // Yeux sur la face visible, du côté où il va sauter
-        val eyeY = y0 + hgt * 0.68f
-        val eyeR = a * (if (scared) 0.3f else 0.24f) * k
-        val closed = (time % 3.2f) > 3.05f || state == State.GAME_OVER
-        for (t in floatArrayOf(0.25f, 0.68f)) {
-            val ex: Float
-            val ey: Float
-            if (alongX) {
-                // face z min, vers +x
-                val x = -a + 2f * a * t
-                ex = isoX(x, -a); ey = isoY(x, eyeY, -a)
-            } else {
-                // face x min, vers +z
-                val z = -a + 2f * a * t
-                ex = isoX(-a, z); ey = isoY(-a, eyeY, z)
-            }
-            if (closed) {
-                canvas.drawRect(ex - eyeR, ey - eyeR * 0.15f, ex + eyeR, ey + eyeR * 0.15f, pupilPaint)
-            } else {
-                canvas.drawCircle(ex, ey, eyeR, eyeWhitePaint)
-                val dir = if (alongX) 1f else -1f
-                val pupil = if (scared) 0.32f else 0.5f
-                canvas.drawCircle(ex + dir * eyeR * 0.35f, ey - eyeR * 0.15f, eyeR * pupil, pupilPaint)
-            }
-        }
-
-        // "!" au-dessus de la tête quand il a eu peur
+        // Bulles au-dessus de la tête
+        val headY = oy + isoY(0f, py + bodyH + 0.5f, 0f)
         if (scared) {
             val elapsed = scareDuration - scareT
-            val pop = min(1f, elapsed / 0.15f)
-            val bx = 0f
-            val by = isoY(0f, y1 + 0.5f, 0f)
-            val r = k * 0.2f * pop
-            canvas.drawCircle(bx, by, r, bubblePaint)
+            val r = k * 0.2f * min(1f, elapsed / 0.15f)
+            canvas.drawCircle(ox, headY, r, bubblePaint)
             bangPaint.textSize = r * 1.5f
-            canvas.drawText("!", bx, by - (bangPaint.descent() + bangPaint.ascent()) / 2f, bangPaint)
+            canvas.drawText("!", ox, headY - (bangPaint.descent() + bangPaint.ascent()) / 2f, bangPaint)
+        }
+        if (falling) when (fallAnim) {
+            FallAnim.PANIC -> drawBubble(canvas, ox, headY, "Aaaah !")
+            FallAnim.SPIN -> if (fallT < 0.8f) drawBubble(canvas, ox, headY - k * 0.3f, "Wouaah !")
+            FallAnim.CARTOON -> when {
+                fallT in 0.2f..0.8f -> drawBubble(canvas, ox, headY, "…")
+                fallT in 0.8f..1.5f -> drawBubble(canvas, ox, headY, "Oups !")
+            }
+            FallAnim.PARACHUTE -> if (fallT in 1.9f..2.6f) drawBubble(canvas, ox, headY, "Crac !")
+        }
+    }
+
+    /** Petit parachute rayé au-dessus du personnage. */
+    private fun drawParachute(canvas: Canvas, cx: Float, topY: Float) {
+        val half = k * 0.6f
+        val canopyBase = topY - k * 0.55f
+        accStroke.color = Color.parseColor("#2E3A59")
+        accStroke.strokeWidth = k * 0.015f
+        canvas.drawLine(cx - half, canopyBase, cx - k * 0.08f, topY, accStroke)
+        canvas.drawLine(cx, canopyBase, cx, topY, accStroke)
+        canvas.drawLine(cx + half, canopyBase, cx + k * 0.08f, topY, accStroke)
+        rect.set(cx - half, canopyBase - half * 0.8f, cx + half, canopyBase + half * 0.8f)
+        accPaint.color = Color.parseColor("#E53950")
+        canvas.drawArc(rect, 180f, 180f, true, accPaint)
+        accPaint.color = Color.WHITE
+        canvas.drawArc(rect, 216f, 36f, true, accPaint)
+        canvas.drawArc(rect, 288f, 36f, true, accPaint)
+    }
+
+    /** Bulle de BD avec un petit texte. */
+    private fun drawBubble(canvas: Canvas, x: Float, bottomY: Float, text: String) {
+        bubbleTextPaint.textSize = w * 0.04f
+        val tw = bubbleTextPaint.measureText(text)
+        val pad = w * 0.025f
+        val bh = w * 0.07f
+        val y = bottomY - w * 0.02f
+        rect.set(x - tw / 2f - pad, y - bh, x + tw / 2f + pad, y)
+        tmpPath.reset()
+        tmpPath.moveTo(x - w * 0.015f, y - 1f)
+        tmpPath.lineTo(x + w * 0.015f, y - 1f)
+        tmpPath.lineTo(x, y + w * 0.025f)
+        tmpPath.close()
+        bubbleStroke.strokeWidth = w * 0.005f
+        canvas.drawRoundRect(rect, bh / 2f, bh / 2f, bubblePaint)
+        canvas.drawRoundRect(rect, bh / 2f, bh / 2f, bubbleStroke)
+        canvas.drawPath(tmpPath, bubblePaint)
+        canvas.drawText(text, x, rect.centerY() - (bubbleTextPaint.descent() + bubbleTextPaint.ascent()) / 2f, bubbleTextPaint)
+    }
+
+    /**
+     * Dessine le personnage (forme, couleur, yeux et accessoires) avec ses pieds en (ox, oy),
+     * à la hauteur y0. [dirX] = regarde vers +x (sinon +z), [front] = regarde la caméra.
+     */
+    private fun drawCharacter(
+        canvas: Canvas, ox: Float, oy: Float, y0: Float, scaleW: Float, scaleH: Float,
+        dirX: Boolean, scared: Boolean, front: Boolean
+    ) {
+        canvas.save()
+        canvas.translate(ox, oy)
+        val round = lookShape == "cylindre" || lookShape == "boule"
+        val a = scaleW * when (lookShape) {
+            "tour" -> 0.18f
+            "cylindre" -> 0.25f
+            "boule" -> 0.29f
+            else -> playerHalf
+        }
+        val hgt = shapeHeight(scaleH)
+        val y1 = y0 + hgt
+
+        // --- Corps ---
+        when (lookShape) {
+            "cylindre" -> {
+                val rx = 1.2247449f * k * a
+                val ry = 0.70710677f * k * a
+                val yb = isoY(0f, y0, 0f)
+                val yt = isoY(0f, y1, 0f)
+                rect.set(-rx, yb - ry, rx, yb + ry)
+                canvas.drawOval(rect, playerLeft)
+                canvas.drawRect(-rx, yt, rx, yb, playerLeft)
+                canvas.save()
+                canvas.clipRect(0f, yt - ry * 2f, rx, yb + ry)
+                canvas.drawOval(rect, playerRight)
+                canvas.drawRect(-rx, yt, rx, yb, playerRight)
+                canvas.restore()
+                rect.set(-rx, yt - ry, rx, yt + ry)
+                canvas.drawOval(rect, playerTop)
+            }
+            "boule" -> {
+                val cy = isoY(0f, y0 + hgt / 2f, 0f)
+                val rx = a * k * 1.15f
+                val ryv = hgt / 2f * k
+                rect.set(-rx, cy - ryv, rx, cy + ryv)
+                canvas.drawOval(rect, playerRight)
+                rect.set(-rx * 0.98f, cy - ryv, rx * 0.84f, cy + ryv * 0.86f)
+                canvas.drawOval(rect, playerLeft)
+                canvas.drawCircle(-rx * 0.38f, cy - ryv * 0.45f, rx * 0.2f, playerTop)
+            }
+            else -> {
+                // face gauche (x min), face droite (z min), dessus
+                quad(tmpPath, -a, y1, a, -a, y1, -a, -a, y0, -a, -a, y0, a)
+                canvas.drawPath(tmpPath, playerLeft)
+                quad(tmpPath, -a, y1, -a, a, y1, -a, a, y0, -a, -a, y0, -a)
+                canvas.drawPath(tmpPath, playerRight)
+                quad(tmpPath, -a, y1, -a, a, y1, -a, a, y1, a, -a, y1, a)
+                canvas.drawPath(tmpPath, playerTop)
+            }
+        }
+
+        // Direction du regard à l'écran (+x : en haut à droite, +z : en haut à gauche, caméra : vers le bas)
+        val fdx = if (front) 0f else if (dirX) 0.866f else -0.866f
+        val fdy = if (front) 0.5f else -0.5f
+
+        // --- Chaussures ---
+        if (lookShoes != Skins.NONE) {
+            val fa = if (lookShape == "boule") a * 0.6f else a
+            for (i in 0..1) {
+                val wx = if (i == 0) -fa * 0.85f else fa * 0.15f
+                val wz = if (i == 0) fa * 0.15f else -fa * 0.85f
+                val sx0 = isoX(wx, wz) + fdx * k * 0.05f
+                val sy0 = isoY(wx, y0, wz)
+                val sw = k * 0.12f
+                val sh = k * 0.06f
+                if (lookShoes == "bottes") {
+                    accPaint.color = Color.parseColor("#7B4A2A")
+                    canvas.drawRect(sx0 - sw * 0.6f, sy0 - k * 0.15f, sx0 + sw * 0.6f, sy0, accPaint)
+                    rect.set(sx0 - sw, sy0 - sh, sx0 + sw, sy0 + sh)
+                    canvas.drawOval(rect, accPaint)
+                } else {
+                    accPaint.color = Color.WHITE
+                    rect.set(sx0 - sw, sy0 - sh, sx0 + sw, sy0 + sh)
+                    canvas.drawOval(rect, accPaint)
+                    accPaint.color = Color.parseColor("#E53950")
+                    canvas.drawRect(sx0 - sw * 0.5f, sy0 - sh * 0.35f, sx0 + sw * 0.5f, sy0 + sh * 0.1f, accPaint)
+                }
+            }
+        }
+
+        // --- Yeux ---
+        val eyeY = y0 + hgt * (if (lookShape == "boule") 0.6f else 0.68f)
+        val eyeR = k * 0.058f * (if (scared) 1.25f else 1f)
+        val ex = FloatArray(2)
+        val ey = FloatArray(2)
+        for (i in 0..1) {
+            val wx: Float
+            val wz: Float
+            if (!round) {
+                if (front) {
+                    wx = if (i == 0) -a else -a * 0.45f
+                    wz = if (i == 0) -a * 0.45f else -a
+                } else {
+                    val t = if (i == 0) 0.25f else 0.68f
+                    wx = if (dirX) -a + 2f * a * t else -a
+                    wz = if (dirX) -a else -a + 2f * a * t
+                }
+            } else {
+                val rr = if (lookShape == "boule") a * 0.9f else a
+                val th = when {
+                    front -> if (i == 0) -2.0f else -2.75f
+                    dirX -> if (i == 0) -1.9f else -1.3f
+                    else -> if (i == 0) 3.47f else 2.87f
+                }
+                wx = rr * kotlin.math.cos(th)
+                wz = rr * sin(th)
+            }
+            ex[i] = isoX(wx, wz)
+            ey[i] = isoY(wx, eyeY, wz)
+        }
+        val closed = !scared && (time % 3.2f) > 3.05f
+        val pupilDir = if (front) 0f else if (dirX) 1f else -1f
+        for (i in 0..1) {
+            if (closed) {
+                canvas.drawRect(ex[i] - eyeR, ey[i] - eyeR * 0.15f, ex[i] + eyeR, ey[i] + eyeR * 0.15f, pupilPaint)
+            } else {
+                canvas.drawCircle(ex[i], ey[i], eyeR, eyeWhitePaint)
+                val pupil = if (scared) 0.32f else 0.5f
+                canvas.drawCircle(ex[i] + pupilDir * eyeR * 0.35f, ey[i] - eyeR * 0.15f, eyeR * pupil, pupilPaint)
+            }
+        }
+
+        // --- Lunettes ---
+        fun bridge(r: Float) {
+            val dx = ex[1] - ex[0]
+            val dy = ey[1] - ey[0]
+            val len = sqrt(dx * dx + dy * dy)
+            if (len > 2f * r) {
+                canvas.drawLine(ex[0] + dx / len * r, ey[0] + dy / len * r, ex[1] - dx / len * r, ey[1] - dy / len * r, accStroke)
+            }
+        }
+        when (lookGlasses) {
+            "rondes" -> {
+                accStroke.color = Color.parseColor("#2E2A28")
+                accStroke.strokeWidth = k * 0.022f
+                val r = eyeR * 1.55f
+                for (i in 0..1) canvas.drawCircle(ex[i], ey[i], r, accStroke)
+                bridge(r)
+            }
+            "soleil" -> {
+                accPaint.color = Color.rgb(25, 25, 35)
+                accStroke.color = Color.rgb(25, 25, 35)
+                accStroke.strokeWidth = k * 0.025f
+                for (i in 0..1) {
+                    rect.set(ex[i] - eyeR * 1.6f, ey[i] - eyeR * 1.15f, ex[i] + eyeR * 1.6f, ey[i] + eyeR * 1.15f)
+                    canvas.drawRoundRect(rect, eyeR * 0.6f, eyeR * 0.6f, accPaint)
+                }
+                bridge(eyeR * 1.4f)
+                accPaint.color = Color.argb(150, 255, 255, 255)
+                for (i in 0..1) canvas.drawCircle(ex[i] - eyeR * 0.6f, ey[i] - eyeR * 0.4f, eyeR * 0.3f, accPaint)
+            }
+            "coeur" -> {
+                accPaint.color = Color.parseColor("#FF4D8D")
+                val sz = eyeR * 1.2f
+                for (i in 0..1) {
+                    val x = ex[i]
+                    val y = ey[i]
+                    tmpPath.reset()
+                    tmpPath.moveTo(x, y + sz * 0.9f)
+                    tmpPath.cubicTo(x - sz * 1.6f, y - sz * 0.2f, x - sz * 0.6f, y - sz * 1.3f, x, y - sz * 0.45f)
+                    tmpPath.cubicTo(x + sz * 0.6f, y - sz * 1.3f, x + sz * 1.6f, y - sz * 0.2f, x, y + sz * 0.9f)
+                    tmpPath.close()
+                    canvas.drawPath(tmpPath, accPaint)
+                }
+                accStroke.color = Color.parseColor("#FF4D8D")
+                accStroke.strokeWidth = k * 0.02f
+                bridge(sz * 1.1f)
+            }
+        }
+
+        // --- Chapeau ---
+        val hy = isoY(0f, y1, 0f)
+        val hs = a * k * 1.1f
+        when (lookHat) {
+            "casquette" -> {
+                accPaint.color = Color.parseColor("#E53950")
+                rect.set(-hs * 0.85f, hy - hs * 0.75f, hs * 0.85f, hy + hs * 0.35f)
+                canvas.drawArc(rect, 180f, 180f, true, accPaint)
+                accPaint.color = Color.parseColor("#B32638")
+                val vx = fdx * hs * 0.9f
+                val vy = hy - hs * 0.2f + fdy * hs * 0.25f
+                rect.set(vx - hs * 0.55f, vy - hs * 0.2f, vx + hs * 0.55f, vy + hs * 0.2f)
+                canvas.drawOval(rect, accPaint)
+            }
+            "hautdeforme" -> {
+                accPaint.color = Color.parseColor("#22222C")
+                rect.set(-hs * 1.2f, hy - hs * 0.37f, hs * 1.2f, hy + hs * 0.27f)
+                canvas.drawOval(rect, accPaint)
+                canvas.drawRect(-hs * 0.72f, hy - hs * 1.45f, hs * 0.72f, hy - hs * 0.05f, accPaint)
+                accPaint.color = Color.parseColor("#E53950")
+                canvas.drawRect(-hs * 0.72f, hy - hs * 0.45f, hs * 0.72f, hy - hs * 0.2f, accPaint)
+                accPaint.color = Color.parseColor("#3A3A48")
+                rect.set(-hs * 0.72f, hy - hs * 1.65f, hs * 0.72f, hy - hs * 1.25f)
+                canvas.drawOval(rect, accPaint)
+            }
+            "couronne" -> {
+                accPaint.color = Color.parseColor("#F5C542")
+                tmpPath.reset()
+                tmpPath.moveTo(-hs * 0.8f, hy + hs * 0.05f)
+                tmpPath.lineTo(-hs * 0.8f, hy - hs * 0.75f)
+                tmpPath.lineTo(-hs * 0.4f, hy - hs * 0.35f)
+                tmpPath.lineTo(0f, hy - hs * 0.95f)
+                tmpPath.lineTo(hs * 0.4f, hy - hs * 0.35f)
+                tmpPath.lineTo(hs * 0.8f, hy - hs * 0.75f)
+                tmpPath.lineTo(hs * 0.8f, hy + hs * 0.05f)
+                tmpPath.close()
+                canvas.drawPath(tmpPath, accPaint)
+                accPaint.color = Color.parseColor("#E53950")
+                canvas.drawCircle(0f, hy - hs * 0.2f, hs * 0.13f, accPaint)
+            }
         }
         canvas.restore()
+    }
+
+    private fun currentLook(slot: Skins.Slot): String = when (slot) {
+        Skins.Slot.SHAPE -> lookShape
+        Skins.Slot.GLASSES -> lookGlasses
+        Skins.Slot.HAT -> lookHat
+        Skins.Slot.SHOES -> lookShoes
+        Skins.Slot.COLOR -> {
+            val pts = profile.totalPoints
+            val item = Skins.find(slot, profile.selected(slot))
+            if (item.cost <= pts) item.id else Skins.default(slot)
+        }
+    }
+
+    private fun drawCustomize(canvas: Canvas) {
+        canvas.drawRect(0f, 0f, w, h, overlayPaint)
+        val left = w * 0.04f
+        val right = w * 0.96f
+        val top = h * 0.05f
+        val bottom = h * 0.95f
+        rect.set(left, top, right, bottom)
+        canvas.drawRoundRect(rect, w * 0.05f, w * 0.05f, panelPaint)
+
+        darkTextPaint.textAlign = Paint.Align.CENTER
+        darkTextPaint.textSize = w * 0.07f
+        canvas.drawText("Ton personnage", w / 2f, top + w * 0.1f, darkTextPaint)
+
+        // Aperçu (regarde à droite puis à gauche)
+        val pcx = w / 2f
+        val pcy = top + w * 0.42f
+        rect.set(pcx - k * 0.75f, pcy - k * 0.3f, pcx + k * 0.75f, pcy + k * 0.3f)
+        canvas.drawOval(rect, shadowPaint)
+        canvas.save()
+        canvas.translate(pcx, pcy)
+        canvas.scale(2f, 2f)
+        val dirX = (time / 2.5f).toInt() % 2 == 0
+        drawCharacter(canvas, 0f, 0f, 0f, 1f, 1f, dirX, scared = false, front = false)
+        canvas.restore()
+
+        // Onglets
+        val tabTop = pcy + w * 0.1f
+        val tabH = w * 0.085f
+        val slots = Skins.Slot.values()
+        val tw = (right - left - w * 0.04f) / slots.size
+        slots.forEachIndexed { i, slot ->
+            val x0 = left + w * 0.02f + i * tw
+            drawButton(
+                canvas, RectF(x0 + w * 0.004f, tabTop, x0 + tw - w * 0.004f, tabTop + tabH), slot.title,
+                if (slot == custSlot) tabOnPaint else tabOffPaint, w * 0.03f
+            ) { custSlot = slot }
+        }
+
+        // Eléments de l'onglet
+        val pts = profile.totalPoints
+        val selected = currentLook(custSlot)
+        val gridTop = tabTop + tabH + w * 0.04f
+        val cellH = w * 0.095f
+        val cellW = (right - left - w * 0.08f) / 2f
+        Skins.bySlot(custSlot).forEachIndexed { i, item ->
+            val col = i % 2
+            val row = i / 2
+            val x0 = left + w * 0.04f + col * cellW
+            val y0 = gridTop + row * (cellH + w * 0.02f)
+            val r = RectF(x0 + w * 0.01f, y0, x0 + cellW - w * 0.01f, y0 + cellH)
+            val unlocked = item.cost <= pts
+            val isSel = item.id == selected
+            val label = when {
+                !unlocked -> "🔒 ${item.label} · ${item.cost}"
+                isSel -> "✓ ${item.label}"
+                else -> item.label
+            }
+            val bg = when {
+                !unlocked -> lockedPaint
+                custSlot == Skins.Slot.COLOR -> itemPaint.also { it.color = item.color }
+                isSel -> tabOnPaint
+                else -> tabOffPaint
+            }
+            if (isSel && custSlot == Skins.Slot.COLOR) {
+                bubbleStroke.strokeWidth = w * 0.008f
+                val rr = RectF(r.left - w * 0.008f, r.top - w * 0.008f, r.right + w * 0.008f, r.bottom + w * 0.008f)
+                canvas.drawRoundRect(rr, rr.height() / 2f, rr.height() / 2f, bubbleStroke)
+            }
+            drawButton(canvas, r, label, bg, w * 0.036f) {
+                if (unlocked) {
+                    profile.select(custSlot, item.id)
+                    loadLook()
+                } else {
+                    custMsg = "🔒 Se débloque à ${item.cost} points cumulés"
+                    custMsgT = 2.5f
+                }
+            }
+        }
+
+        // Bas : points cumulés et validation
+        greyTextPaint.textSize = w * 0.038f
+        val footY = bottom - w * 0.2f
+        val nextItem = Skins.nextUnlock(pts)
+        val info = when {
+            custMsgT > 0f -> custMsg
+            nextItem != null -> "Points cumulés : $pts · prochain : ${nextItem.label} à ${nextItem.cost}"
+            else -> "Points cumulés : $pts · tout est débloqué !"
+        }
+        canvas.drawText(ellipsize(info, greyTextPaint, right - left - w * 0.06f), w / 2f, footY, greyTextPaint)
+        drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.15f, w * 0.7f, bottom - w * 0.05f), "OK",
+            primaryBtnPaint, w * 0.05f) { closeCustomize() }
     }
 
     private fun drawGameOver(canvas: Canvas) {
@@ -1038,8 +1490,22 @@ class GameView(context: Context) : View(context) {
                 openBoard(world = true)
             }
             y += sh + w * 0.04f
-            drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + sh), "✎ Pseudo : " + (profile.pseudo ?: "?"),
+            drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), "✎ " + (profile.pseudo ?: "Pseudo"),
                 chipPaint, w * 0.04f) { askPseudo(first = false) }
+            drawButton(canvas, RectF(w * 0.51f, y, w * 0.9f, y + sh), "🎨 Personnage",
+                chipPaint, w * 0.04f) { openCustomize() }
+            y += sh + w * 0.09f
+            textPaint.textSize = w * 0.042f
+            if (unlockedLabels.isNotEmpty()) {
+                canvas.drawText(ellipsize("🎁 Débloqué : " + unlockedLabels.joinToString(", "), textPaint, w * 0.92f),
+                    w / 2f, y, textPaint)
+                y += w * 0.065f
+            }
+            val pts = profile.totalPoints
+            Skins.nextUnlock(pts)?.let {
+                textPaint.textSize = w * 0.036f
+                canvas.drawText("Prochain : ${it.label} (encore ${it.cost - pts} pts)", w / 2f, y, textPaint)
+            }
         }
     }
 }
