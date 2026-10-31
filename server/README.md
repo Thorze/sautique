@@ -5,6 +5,18 @@ et le pseudo de chaque joueur.
 
 ## Installation sur le VPS
 
+### Le plus rapide : script d'installation
+
+Sur le VPS (Debian/Ubuntu/Fedora…, avec systemd) :
+
+```bash
+git clone -b claude/sleepy-euler-aowuk7 https://github.com/Thorze/sautique.git
+sudo bash sautique/server/install.sh
+```
+
+À la fin, le script affiche l'adresse à mettre dans `SCORES_URL`.
+Pour mettre à jour le serveur plus tard : `git pull` puis relancer le script.
+
 ### Option A : Docker (le plus simple)
 
 ```bash
