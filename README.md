@@ -3,7 +3,7 @@
 Petit jeu Android en vue isométrique (effet 3D) : maintiens le doigt appuyé sur l'écran pour charger le saut,
 relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
 
-- La plateforme de départ est fixe, une nouvelle plateforme apparaît à droite.
+- La plateforme de départ est fixe, une nouvelle plateforme apparaît plus loin.
 - 1 saut réussi = 1 point (compteur en gros en haut de l'écran).
 - Saut trop court sur ta propre plateforme : pas de point, tu peux réessayer.
 - Tomber dans le vide = partie terminée. Le record est sauvegardé.
