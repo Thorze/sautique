@@ -595,7 +595,7 @@ class GameView(context: Context) : View(context) {
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                if (dragSlider == 1) sounds.play(Sounds.Sfx.LAND)
+                if (dragSlider == 1) sounds.play(Sounds.Sfx.GREAT)
                 dragSlider = 0
                 if (state == State.CHARGING) startJump()
             }
@@ -677,7 +677,7 @@ class GameView(context: Context) : View(context) {
         wheelSpeed = 620f
         wheelStopping = false
         lastWheelIdx = -1
-        sounds.play(Sounds.Sfx.BONUS_START)
+        sounds.playBonusMusic()
         state = State.BONUS
     }
 
@@ -729,7 +729,9 @@ class GameView(context: Context) : View(context) {
         val before = profile.totalPoints
         newBest = profile.addRun(score)
         unlockedLabels = Skins.unlockedBetween(before, profile.totalPoints).map { it.label }
-        if (unlockedLabels.isNotEmpty()) postDelayed({ sounds.play(Sounds.Sfx.UNLOCK) }, 700)
+        val unlocked = unlockedLabels.isNotEmpty()
+        // Musique de défaite, puis « congratulations » si un élément a été débloqué
+        sounds.playGameOver { if (unlocked) sounds.play(Sounds.Sfx.UNLOCK) }
         best = profile.best
         syncOnline()
     }
@@ -880,7 +882,10 @@ class GameView(context: Context) : View(context) {
                 } else if (bonusResult != 0) {
                     bonusResultT += dt
                     // Raté ou réussi, la partie continue
-                    if (bonusResultT > 1.3f) state = State.READY
+                    if (bonusResultT > 1.3f) {
+                        state = State.READY
+                        sounds.playPlaylist()
+                    }
                 }
             }
 
@@ -914,7 +919,12 @@ class GameView(context: Context) : View(context) {
                     )
                 )
                 if (!scared) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                sounds.play(if (perfect) Sounds.Sfx.PERFECT else Sounds.Sfx.LAND)
+                when {
+                    perfect -> sounds.play(Sounds.Sfx.PERFECT)
+                    // « Great » de temps en temps (environ 1 saut sur 5)
+                    !scared && Random.nextInt(5) == 0 && sounds.has(Sounds.Sfx.GREAT) -> sounds.play(Sounds.Sfx.GREAT)
+                    else -> sounds.play(Sounds.Sfx.LAND)
+                }
                 current = next
                 spawnNext()
                 updateCameraTarget()

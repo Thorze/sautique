@@ -63,3 +63,22 @@ android {
         jvmTarget = "17"
     }
 }
+
+// Sons : les fichiers du dossier sons/ (à la racine du dépôt) sont copiés dans les ressources
+// de l'appli, avec des noms valides pour Android (minuscules, « - » et espaces remplacés par « _ »).
+val generatedSounds = layout.buildDirectory.dir("generated/sons").get().asFile
+val copySounds by tasks.registering(Sync::class) {
+    from(rootProject.file("sons")) {
+        include("**/*.mp3", "**/*.ogg", "**/*.wav", "**/*.MP3", "**/*.OGG", "**/*.WAV")
+    }
+    into(File(generatedSounds, "raw"))
+    includeEmptyDirs = false
+    eachFile {
+        val ext = name.substringAfterLast('.').lowercase()
+        var base = name.substringBeforeLast('.').lowercase().replace(Regex("[^a-z0-9_]"), "_")
+        if (base.firstOrNull()?.isLetter() != true) base = "s_$base"
+        path = "$base.$ext"
+    }
+}
+android.sourceSets["main"].res.srcDir(generatedSounds)
+tasks.named("preBuild") { dependsOn(copySounds) }
