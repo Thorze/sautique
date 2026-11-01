@@ -512,6 +512,34 @@ internal fun GameView.drawCharacter(
             accPaint.color = Color.parseColor("#C98A00")
             canvas.drawRect(-hs * 0.85f, hy - hs * 0.3f, hs * 0.85f, hy - hs * 0.15f, accPaint)
         }
+        "bonnet" -> {
+            // Bonnet de laine avec revers et pompon
+            accPaint.color = Color.parseColor("#3F8EFC")
+            rect.set(-hs * 0.9f, hy - hs * 1.1f, hs * 0.9f, hy + hs * 0.5f)
+            canvas.drawArc(rect, 180f, 180f, true, accPaint)
+            accPaint.color = Color.parseColor("#2C6ED5")
+            rect.set(-hs * 0.95f, hy - hs * 0.42f, hs * 0.95f, hy - hs * 0.08f)
+            canvas.drawRoundRect(rect, hs * 0.15f, hs * 0.15f, accPaint)
+            accPaint.color = Color.WHITE
+            canvas.drawCircle(0f, hy - hs * 1.15f, hs * 0.22f, accPaint)
+        }
+        "cowboy" -> {
+            accPaint.color = Color.parseColor("#A0673A")
+            // Large bord relevé
+            rect.set(-hs * 1.5f, hy - hs * 0.4f, hs * 1.5f, hy + hs * 0.25f)
+            canvas.drawOval(rect, accPaint)
+            // Calotte
+            tmpPath.reset()
+            tmpPath.moveTo(-hs * 0.7f, hy - hs * 0.15f)
+            tmpPath.lineTo(-hs * 0.6f, hy - hs * 1.05f)
+            tmpPath.quadTo(0f, hy - hs * 0.75f, hs * 0.6f, hy - hs * 1.05f)
+            tmpPath.lineTo(hs * 0.7f, hy - hs * 0.15f)
+            tmpPath.close()
+            accPaint.color = Color.parseColor("#B57A45")
+            canvas.drawPath(tmpPath, accPaint)
+            accPaint.color = Color.parseColor("#4E2E1A")
+            canvas.drawRect(-hs * 0.68f, hy - hs * 0.42f, hs * 0.68f, hy - hs * 0.25f, accPaint)
+        }
         "aureole" -> {
             accStroke.color = Color.parseColor("#FFD54F")
             accStroke.strokeWidth = k * 0.035f
