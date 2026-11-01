@@ -31,7 +31,7 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
 - **Pièces** à ramasser sur les plateformes (grosse pièce = 5) : elles servent à acheter des
   éléments exclusifs dans l'écran Personnage (lunettes pixel, monocle, chapeaux magicien /
   viking / auréole, chaussures fusées, couleurs arc-en-ciel et galaxie).
-- **Vie bonus** : à 30, 60, 90… points, un cœur flotte sur une plateforme. Ramassé, il donne une
+- **Vie bonus** : tous les 30 sauts réussis, un cœur flotte sur une plateforme. Ramassé, il donne une
   vie (3 max) : en cas de chute, le personnage revient avec des ailes d'ange sur sa plateforme
   et la partie continue sans perdre le score.
 - **Collection** : formes, couleurs, lunettes, chapeaux, chaussures, objets de dos (cape, sac à
