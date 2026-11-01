@@ -419,7 +419,7 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
     // Onglets
     val tabTop = top + w * 0.13f + previewH + w * 0.02f
     val slots = Skins.Slot.values()
-    // Onglets sur deux lignes (4 + 3)
+    // Onglets sur deux lignes (4 + 4)
     slots.forEachIndexed { i, slot ->
         val row = if (i < 4) 0 else 1
         val inRow = if (row == 0) 4 else slots.size - 4
@@ -570,6 +570,8 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
     val nextItem = Skins.nextUnlock(pts)
     val info = when {
         custMsgT > 0f -> custMsg
+        lookSpecial != Skins.NONE && custSlot != Skins.Slot.CHARACTER && custSlot != Skins.Slot.TRAIL ->
+            "Sans effet sur un perso spécial"
         nextItem != null -> "🪙 ${profile.coins} · $pts pts · prochain : ${nextItem.label} à ${nextItem.cost}"
         else -> "🪙 ${profile.coins} · $pts pts · tout est débloqué !"
     }

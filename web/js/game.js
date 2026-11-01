@@ -42,7 +42,7 @@ let platforms = [], current = null, next = null;
 let px = 0, pz = 0, py = 0, alongX = true, charge = 0;
 let jumpT = 0, jumpDuration = 0.5, jumpFrom = 0, jumpDist = 0, jumpHeight = 0, jumpTrick = 'none';
 let fallVy = 0, fallT = 0, fallAnim = 'spin';
-let lookShape = 'cube', lookGlasses = 'none', lookHat = 'none', lookShoes = 'none', lookColor = 'orange';
+let lookSpecial = 'none', lookShape = 'cube', lookGlasses = 'none', lookHat = 'none', lookShoes = 'none', lookColor = 'orange';
 let lookBack = 'none', lookTrail = 'none', trailTimer = 0;
 const tintColors = new Map();
 let lives = 0, reviveT = 0, reviveFromX = 0, reviveFromY = 0, reviveFromZ = 0, reviveTarget = null;

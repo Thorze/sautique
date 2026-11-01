@@ -2,6 +2,7 @@
 // Apparence et dessin du personnage (équivalent de Character.kt).
 
 function shapeHeight(scaleH) {
+  if (lookSpecial !== Skins.NONE) return specialHeight(lookSpecial) * scaleH;
   return scaleH * (lookShape === 'tour' ? 0.82 : lookShape === 'boule' ? 0.58 : playerHeight);
 }
 
@@ -108,6 +109,11 @@ function drawBubble(canvas, x, bottomY, text) {
 function drawCharacter(canvas, ox, oy, y0, scaleW, scaleH, dirX, scared, front, angel = false) {
   canvas.save();
   canvas.translate(ox, oy);
+  if (lookSpecial !== Skins.NONE) {
+    drawSpecialCharacter(canvas, y0, scaleW, scaleH, dirX, scared, front, angel);
+    canvas.restore();
+    return;
+  }
   const round = lookShape === 'cylindre' || lookShape === 'boule';
   const a = scaleW * (lookShape === 'tour' ? 0.18 : lookShape === 'cylindre' ? 0.25 : lookShape === 'boule' ? 0.29 : playerHalf);
   const hgt = shapeHeight(scaleH);
@@ -401,7 +407,7 @@ function tinted(slot, original, f = 1) {
 
 function loadLook() {
   const pick = (slot) => { const it = Skins.find(slot, profile.selected(slot)); return profile.available(it) ? it.id : Skins.def(slot); };
-  lookShape = pick(Slot.SHAPE); lookGlasses = pick(Slot.GLASSES); lookHat = pick(Slot.HAT); lookShoes = pick(Slot.SHOES);
+  lookSpecial = pick(Slot.CHARACTER); lookShape = pick(Slot.SHAPE); lookGlasses = pick(Slot.GLASSES); lookHat = pick(Slot.HAT); lookShoes = pick(Slot.SHOES);
   lookBack = pick(Slot.BACK); lookTrail = pick(Slot.TRAIL); lookColor = pick(Slot.COLOR);
   for (const slot of Skins.tintable) {
     const t = Skins.tint(profile.selectedTint(slot));
@@ -420,7 +426,7 @@ function loadLook() {
 
 function currentLook(slot) {
   switch (slot) {
-    case Slot.SHAPE: return lookShape; case Slot.GLASSES: return lookGlasses; case Slot.HAT: return lookHat;
+    case Slot.CHARACTER: return lookSpecial; case Slot.SHAPE: return lookShape; case Slot.GLASSES: return lookGlasses; case Slot.HAT: return lookHat;
     case Slot.SHOES: return lookShoes; case Slot.BACK: return lookBack; case Slot.TRAIL: return lookTrail;
     default: return lookColor;
   }

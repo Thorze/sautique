@@ -375,7 +375,9 @@ function drawCustomize(canvas) {
 
   greyTextPaint.textSize = w * 0.038;
   const nx = Skins.nextUnlock(pts);
-  const info = custMsgT > 0 ? custMsg : nx ? `🪙 ${profile.coins} · ${pts} pts · prochain : ${nx.label} à ${nx.cost}` : `🪙 ${profile.coins} · ${pts} pts · tout est débloqué !`;
+  const info = custMsgT > 0 ? custMsg
+    : lookSpecial !== Skins.NONE && custSlot !== Slot.CHARACTER && custSlot !== Slot.TRAIL ? 'Sans effet sur un perso spécial'
+    : nx ? `🪙 ${profile.coins} · ${pts} pts · prochain : ${nx.label} à ${nx.cost}` : `🪙 ${profile.coins} · ${pts} pts · tout est débloqué !`;
   canvas.drawText(ellipsize(info, greyTextPaint, right - left - w * 0.06), w / 2, footY, greyTextPaint);
   drawButton(canvas, new RectF(w * 0.3, bottom - w * 0.15, w * 0.7, bottom - w * 0.05), 'OK', primaryBtnPaint, w * 0.05, () => closeCustomize());
 }

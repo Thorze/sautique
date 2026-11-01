@@ -4,6 +4,7 @@
 
 // ---------- Skins ----------
 const Slot = {
+  CHARACTER: { key: 'character', title: 'Persos' },
   SHAPE: { key: 'shape', title: 'Forme' },
   COLOR: { key: 'color', title: 'Couleur' },
   GLASSES: { key: 'glasses', title: 'Lunettes' },
@@ -12,12 +13,19 @@ const Slot = {
   BACK: { key: 'back', title: 'Dos' },
   TRAIL: { key: 'trail', title: 'Traînée' },
 };
-const SLOTS = [Slot.SHAPE, Slot.COLOR, Slot.GLASSES, Slot.HAT, Slot.SHOES, Slot.BACK, Slot.TRAIL];
+const SLOTS = [Slot.CHARACTER, Slot.SHAPE, Slot.COLOR, Slot.GLASSES, Slot.HAT, Slot.SHOES, Slot.BACK, Slot.TRAIL];
 
 const Skins = (() => {
   const NONE = 'none', RAINBOW = 'arcenciel', GALAXY = 'galaxie', ORIGINAL = 'origine';
   const I = (slot, id, label, cost, color = 0, price = 0) => ({ slot, id, label, cost, color, price, isShop: price > 0 });
   const items = [
+    // Personnages complets (non personnalisables), achetés avec les pièces
+    I(Slot.CHARACTER, NONE, 'Le mien', 0),
+    I(Slot.CHARACTER, 'donut', 'Donut', 0, 0, 300), I(Slot.CHARACTER, 'bonhomme', 'Bonhomme de neige', 0, 0, 400),
+    I(Slot.CHARACTER, 'sapin', 'Sapin de Noël', 0, 0, 500), I(Slot.CHARACTER, 'perenoel', 'Père Noël', 0, 0, 600),
+    I(Slot.CHARACTER, 'hippo', 'Hippopotame', 0, 0, 700), I(Slot.CHARACTER, 'capybara', 'Capybara', 0, 0, 800),
+    I(Slot.CHARACTER, 'girafe', 'Girafe', 0, 0, 900),
+
     I(Slot.SHAPE, 'cube', 'Cube', 0), I(Slot.SHAPE, 'boule', 'Boule', 150),
     I(Slot.SHAPE, 'cylindre', 'Cylindre', 500), I(Slot.SHAPE, 'tour', 'Tour', 1200),
 

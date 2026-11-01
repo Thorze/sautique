@@ -8,6 +8,7 @@ package com.sautique.game
 object Skins {
 
     enum class Slot(val key: String, val title: String) {
+        CHARACTER("character", "Persos"),
         SHAPE("shape", "Forme"),
         COLOR("color", "Couleur"),
         GLASSES("glasses", "Lunettes"),
@@ -31,6 +32,16 @@ object Skins {
     const val NONE = "none"
 
     val items: List<Item> = listOf(
+        // Personnages complets (non personnalisables), achetés avec les pièces
+        Item(Slot.CHARACTER, NONE, "Le mien", 0),
+        Item(Slot.CHARACTER, "donut", "Donut", 0, price = 300),
+        Item(Slot.CHARACTER, "bonhomme", "Bonhomme de neige", 0, price = 400),
+        Item(Slot.CHARACTER, "sapin", "Sapin de Noël", 0, price = 500),
+        Item(Slot.CHARACTER, "perenoel", "Père Noël", 0, price = 600),
+        Item(Slot.CHARACTER, "hippo", "Hippopotame", 0, price = 700),
+        Item(Slot.CHARACTER, "capybara", "Capybara", 0, price = 800),
+        Item(Slot.CHARACTER, "girafe", "Girafe", 0, price = 900),
+
         // Formes
         Item(Slot.SHAPE, "cube", "Cube", 0),
         Item(Slot.SHAPE, "boule", "Boule", 150),

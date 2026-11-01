@@ -19,7 +19,7 @@ import kotlin.math.sqrt
 import kotlin.random.Random
 
 /** Hauteur du corps selon la forme choisie. */
-internal fun GameView.shapeHeight(scaleH: Float) = scaleH * when (lookShape) {
+internal fun GameView.shapeHeight(scaleH: Float) = if (lookSpecial != Skins.NONE) specialHeight(lookSpecial) * scaleH else scaleH * when (lookShape) {
     "tour" -> 0.82f
     "boule" -> 0.58f
     else -> playerHeight
@@ -169,6 +169,11 @@ internal fun GameView.drawCharacter(
 ) {
     canvas.save()
     canvas.translate(ox, oy)
+    if (lookSpecial != Skins.NONE) {
+        drawSpecialCharacter(canvas, y0, scaleW, scaleH, dirX, scared, front, angel)
+        canvas.restore()
+        return
+    }
     val round = lookShape == "cylindre" || lookShape == "boule"
     val a = scaleW * when (lookShape) {
         "tour" -> 0.18f
@@ -587,6 +592,7 @@ internal fun GameView.loadLook() {
         val item = Skins.find(slot, profile.selected(slot))
         return if (profile.available(item)) item.id else Skins.default(slot)
     }
+    lookSpecial = pick(Skins.Slot.CHARACTER)
     lookShape = pick(Skins.Slot.SHAPE)
     lookGlasses = pick(Skins.Slot.GLASSES)
     lookHat = pick(Skins.Slot.HAT)
@@ -628,6 +634,7 @@ internal fun GameView.loadLook() {
 }
 
 internal fun GameView.currentLook(slot: Skins.Slot): String = when (slot) {
+    Skins.Slot.CHARACTER -> lookSpecial
     Skins.Slot.SHAPE -> lookShape
     Skins.Slot.GLASSES -> lookGlasses
     Skins.Slot.HAT -> lookHat

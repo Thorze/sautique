@@ -91,7 +91,8 @@ class RectF {
 
 class Path {
   constructor() { this.reset(); }
-  reset() { this.p = new Path2D(); }
+  reset() { this.p = new Path2D(); this.fillType = 'nonzero'; }
+  addCircle(x, y, r) { this.p.moveTo(x + r, y); this.p.arc(x, y, r, 0, Math.PI * 2); }
   moveTo(x, y) { this.p.moveTo(x, y); }
   lineTo(x, y) { this.p.lineTo(x, y); }
   quadTo(x1, y1, x2, y2) { this.p.quadraticCurveTo(x1, y1, x2, y2); }
@@ -170,7 +171,7 @@ class Canvas {
   }
   drawPath(path, p) {
     this._apply(p); const c = this.ctx;
-    if (p.style === 'stroke') c.stroke(path.p); else c.fill(path.p);
+    if (p.style === 'stroke') c.stroke(path.p); else c.fill(path.p, path.fillType || 'nonzero');
     c.globalAlpha = 1;
   }
   drawText(text, x, y, p) {

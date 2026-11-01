@@ -150,6 +150,7 @@ class GameView(context: Context) : View(context) {
 
     // Apparence du personnage
     internal var lookShape = "cube"
+    internal var lookSpecial = Skins.NONE
     internal var lookGlasses = Skins.NONE
     internal var lookHat = Skins.NONE
     internal var lookShoes = Skins.NONE
