@@ -282,7 +282,8 @@ internal fun GameView.drawCharacter(
                 wz = if (dirX) -a else -a + 2f * a * t
             }
         } else {
-            val rr = if (lookShape == "boule") a * 0.9f else a
+            // Sur la boule, les yeux restent bien à l'intérieur de la silhouette
+            val rr = if (lookShape == "boule") a * 0.68f else a
             val th = when {
                 front -> if (i == 0) -2.0f else -2.75f
                 dirX -> if (i == 0) -1.9f else -1.3f
@@ -378,8 +379,10 @@ internal fun GameView.drawCharacter(
     }
 
     // --- Chapeau ---
-    val hy = isoY(0f, y1, 0f)
-    val hs = a * k * 1.1f
+    // Sur la boule, le haut est arrondi : le chapeau est un peu plus petit et s'enfonce sur la tête
+    val ball = lookShape == "boule"
+    val hs = a * k * (if (ball) 0.85f else 1.1f)
+    val hy = isoY(0f, y1, 0f) + (if (ball) hs * 0.5f else 0f)
     when (lookHat) {
         "casquette" -> {
             accPaint.color = Color.parseColor("#E53950")
