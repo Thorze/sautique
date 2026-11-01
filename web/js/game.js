@@ -5,7 +5,7 @@
 const State = {
   READY: 'ready', CHARGING: 'charging', JUMPING: 'jumping', FALLING: 'falling', BONUS: 'bonus',
   GAME_OVER: 'gameover', LEADERBOARD: 'leaderboard', CUSTOMIZE: 'customize', SETTINGS: 'settings',
-  PAUSED: 'paused', MISSIONS: 'missions', REVIVE: 'revive',
+  PAUSED: 'paused', MISSIONS: 'missions', REVIVE: 'revive', AD: 'ad',
 };
 const FALL_ANIMS = ['spin', 'panic', 'parachute', 'cartoon'];
 const TRICKS = ['frontflip', 'backflip', 'pirouette', 'tuck'];
@@ -292,6 +292,7 @@ function startFall() {
 
 function endGame(reason) {
   state = State.GAME_OVER;
+  sessionFalls++;
   gameOverTime = 0;
   gameOverReason = reason;
   const before = profile.totalPoints;
@@ -359,7 +360,7 @@ function update(dt) {
   perfectBarAlpha += (barTarget - perfectBarAlpha) * Math.min(1, dt * 8);
 
   // Plateformes fragiles (en pause pendant le bonus et les écrans)
-  if (![State.BONUS, State.GAME_OVER, State.LEADERBOARD, State.CUSTOMIZE, State.SETTINGS, State.MISSIONS].includes(state)) {
+  if (![State.BONUS, State.GAME_OVER, State.LEADERBOARD, State.CUSTOMIZE, State.SETTINGS, State.MISSIONS, State.AD].includes(state)) {
     for (const p of platforms) {
       if (p.collapsed) { p.dropV += 30 * dt; p.dropY += p.dropV * dt; }
       else if (p.crumbleT >= 0 && p.crumbleSafe) p.crumbleT = Math.min(p.crumbleT + dt, p.crumbleDur * 0.85);
@@ -404,6 +405,7 @@ function update(dt) {
     case State.BONUS: updateBonus(dt); break;
     case State.REVIVE: updateRevive(dt); break;
     case State.GAME_OVER: gameOverTime += dt; break;
+    case State.AD: updateAd(dt); break;
     case State.CUSTOMIZE: if (custMsgT > 0) custMsgT -= dt; break;
     default: break;
   }
@@ -534,6 +536,7 @@ function draw(canvas) {
   if (state === State.PAUSED) drawPause(canvas);
   if (state === State.MISSIONS) drawMissions(canvas);
   if (state === State.SETTINGS) drawSettings(canvas);
+  if (state === State.AD) drawAd(canvas);
 }
 
 // ---------- Entrées tactiles ----------

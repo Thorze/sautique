@@ -352,13 +352,13 @@ internal fun GameView.drawSettings(canvas: Canvas) {
     canvas.drawRect(0f, 0f, w, h, overlayPaint)
     val left = w * 0.06f
     val right = w * 0.94f
-    val top = h * 0.25f
-    val bottom = top + w * 1.12f
+    val top = ((insetTop + ub) / 2f - w * 0.63f).coerceAtLeast(insetTop)
+    val bottom = top + w * 1.26f
     rect.set(left, top, right, bottom)
     canvas.drawRoundRect(rect, w * 0.05f, w * 0.05f, panelPaint)
     darkTextPaint.textAlign = Paint.Align.CENTER
     darkTextPaint.textSize = w * 0.07f
-    canvas.drawText("Son et vibrations", w / 2f, top + w * 0.11f, darkTextPaint)
+    canvas.drawText("Réglages", w / 2f, top + w * 0.11f, darkTextPaint)
 
     val sl = left + w * 0.08f
     val sr = right - w * 0.08f
@@ -372,6 +372,11 @@ internal fun GameView.drawSettings(canvas: Canvas) {
         if (profile.vibrationOn) tabOnPaint else tabOffPaint, w * 0.042f) {
         profile.vibrationOn = !profile.vibrationOn
         if (profile.vibrationOn) vibrate(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+    }
+    drawButton(canvas, RectF(sl, top + w * 0.83f, sr, top + w * 0.94f),
+        "📺 Fausses pubs : " + (if (profile.fakeAdsOn) "oui" else "non"),
+        if (profile.fakeAdsOn) tabOnPaint else tabOffPaint, w * 0.042f) {
+        profile.fakeAdsOn = !profile.fakeAdsOn
     }
 
     drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.17f, w * 0.7f, bottom - w * 0.06f), "OK",
@@ -602,7 +607,7 @@ internal fun GameView.drawGameOver(canvas: Canvas) {
     if (gameOverTime > 0.6f) {
         val bh = w * 0.13f
         var y = y0 + w * 0.36f
-        drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + bh), "Rejouer", primaryBtnPaint, w * 0.06f) { resetGame() }
+        drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + bh), "Rejouer", primaryBtnPaint, w * 0.06f) { replay() }
         y += bh + w * 0.04f
         val sh = w * 0.11f
         drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), "🏆 Classement", secondaryBtnPaint, w * 0.042f) {

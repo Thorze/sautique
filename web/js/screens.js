@@ -246,10 +246,10 @@ function drawSlider(canvas, r, label, value) {
 }
 
 function drawSettings(canvas) {
-  const left = w * 0.06, right = w * 0.94, top = h * 0.25, bottom = top + w * 1.12;
+  const left = w * 0.06, right = w * 0.94, top = Math.max(insetTop, (insetTop + ub()) / 2 - w * 0.63), bottom = top + w * 1.26;
   panel(canvas, left, top, right, bottom);
   darkTextPaint.textAlign = Align.CENTER; darkTextPaint.textSize = w * 0.07;
-  canvas.drawText('Son et vibrations', w / 2, top + w * 0.11, darkTextPaint);
+  canvas.drawText('Réglages', w / 2, top + w * 0.11, darkTextPaint);
   const sl = left + w * 0.08, sr = right - w * 0.08, bh = w * 0.035;
   sfxSlider.set(sl, top + w * 0.3, sr, top + w * 0.3 + bh);
   musicSlider.set(sl, top + w * 0.55, sr, top + w * 0.55 + bh);
@@ -259,6 +259,8 @@ function drawSettings(canvas) {
     drawButton(canvas, new RectF(sl, top + w * 0.68, sr, top + w * 0.79), '📳 Vibrations : ' + (profile.vibrationOn ? 'oui' : 'non'),
       profile.vibrationOn ? tabOnPaint : tabOffPaint, w * 0.042, () => { profile.vibrationOn = !profile.vibrationOn; if (profile.vibrationOn) vibrate(15); });
   }
+  drawButton(canvas, new RectF(sl, top + w * 0.83, sr, top + w * 0.94), '📺 Fausses pubs : ' + (profile.fakeAdsOn ? 'oui' : 'non'),
+    profile.fakeAdsOn ? tabOnPaint : tabOffPaint, w * 0.042, () => { profile.fakeAdsOn = !profile.fakeAdsOn; });
   drawButton(canvas, new RectF(w * 0.3, bottom - w * 0.17, w * 0.7, bottom - w * 0.06), 'OK', primaryBtnPaint, w * 0.05, () => { state = settingsReturnState; });
 }
 
@@ -398,7 +400,7 @@ function drawGameOver(canvas) {
   if (gameOverTime > 0.6) {
     const bh = w * 0.13, sh = w * 0.11;
     let y = y0 + w * 0.36;
-    drawButton(canvas, new RectF(w * 0.2, y, w * 0.8, y + bh), 'Rejouer', primaryBtnPaint, w * 0.06, () => resetGame());
+    drawButton(canvas, new RectF(w * 0.2, y, w * 0.8, y + bh), 'Rejouer', primaryBtnPaint, w * 0.06, () => replay());
     y += bh + w * 0.04;
     drawButton(canvas, new RectF(w * 0.1, y, w * 0.49, y + sh), '🏆 Classement', secondaryBtnPaint, w * 0.042, () => openBoard(1));
     drawButton(canvas, new RectF(w * 0.51, y, w * 0.9, y + sh), '📋 Missions', secondaryBtnPaint, w * 0.042, () => openMissions());

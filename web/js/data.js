@@ -167,6 +167,8 @@ const profile = {
   selectTint(slot, id) { store.set('tint_' + slot.key, id); },
   get vibrationOn() { return store.getBool('vibration_on', true); },
   set vibrationOn(v) { store.setBool('vibration_on', v); },
+  get fakeAdsOn() { return store.getBool('fake_ads_on', true); },
+  set fakeAdsOn(v) { store.setBool('fake_ads_on', v); },
   queueRun(score, duration, jumps) {
     if (score <= 0 || store.getInt('pending_score') >= score) return;
     store.set('pending_score', score); store.set('pending_duration', duration); store.set('pending_jumps', jumps);

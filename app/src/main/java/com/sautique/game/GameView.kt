@@ -151,6 +151,30 @@ class GameView(context: Context) : View(context) {
     // Apparence du personnage
     internal var lookShape = "cube"
     internal var lookSpecial = Skins.NONE
+
+    // Fausses pubs (Ads.kt)
+    internal var adGames = 0
+    internal var sessionFalls = 0
+    internal val adBag = ArrayList<FakeAd>()
+    internal var currentAd: FakeAd? = null
+    internal var adTime = 0f
+    internal var adMsg: String? = null
+    internal var adClicks = 0
+    internal var adToast = ""
+    internal var adToastT = 0f
+    internal var adCloseLeft = false
+    internal var adDodge = false
+    internal val adPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    internal val adCtaPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    internal val adText = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
+    internal val adBold = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+    internal val adStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
     internal var lookGlasses = Skins.NONE
     internal var lookHat = Skins.NONE
     internal var lookShoes = Skins.NONE
@@ -676,6 +700,7 @@ class GameView(context: Context) : View(context) {
 
     internal fun endGame(reason: String?) {
         state = State.GAME_OVER
+        sessionFalls++
         gameOverTime = 0f
         gameOverReason = reason
         val before = profile.totalPoints
@@ -755,7 +780,7 @@ class GameView(context: Context) : View(context) {
 
         // Plateformes fragiles (en pause pendant le bonus et après la partie)
         if (state != State.BONUS && state != State.GAME_OVER && state != State.LEADERBOARD && state != State.CUSTOMIZE && state != State.SETTINGS &&
-            state != State.MISSIONS) {
+            state != State.MISSIONS && state != State.AD) {
             for (p in platforms) {
                 if (p.collapsed) {
                     p.dropV += 30f * dt
@@ -818,6 +843,10 @@ class GameView(context: Context) : View(context) {
 
             State.GAME_OVER -> gameOverTime += dt
             State.CUSTOMIZE -> if (custMsgT > 0f) custMsgT -= dt
+            State.AD -> {
+                adTime += dt
+                if (adToastT > 0f) adToastT -= dt
+            }
             State.READY, State.LEADERBOARD, State.SETTINGS, State.PAUSED, State.MISSIONS -> {}
         }
 
@@ -1013,6 +1042,7 @@ class GameView(context: Context) : View(context) {
         if (state == State.PAUSED) drawPause(canvas)
         if (state == State.MISSIONS) drawMissions(canvas)
         if (state == State.SETTINGS) drawSettings(canvas)
+        if (state == State.AD) drawAd(canvas)
 
         postInvalidateOnAnimation()
     }

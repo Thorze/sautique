@@ -4,7 +4,7 @@ import android.graphics.RectF
 
 /** Types partagés par les différentes parties du jeu. */
 
-internal enum class State { READY, CHARGING, JUMPING, FALLING, BONUS, GAME_OVER, LEADERBOARD, CUSTOMIZE, SETTINGS, PAUSED, MISSIONS, REVIVE }
+internal enum class State { READY, CHARGING, JUMPING, FALLING, BONUS, GAME_OVER, LEADERBOARD, CUSTOMIZE, SETTINGS, PAUSED, MISSIONS, REVIVE, AD }
 internal enum class FallAnim { SPIN, PANIC, PARACHUTE, CARTOON }
 internal enum class JumpTrick { NONE, FRONTFLIP, BACKFLIP, PIROUETTE, TUCK, DOUBLE_FLIP }
 internal enum class BonusType(val title: String, val hint: String) {

@@ -110,6 +110,10 @@ class LocalScores(context: Context) : KeyValueStore {
         get() = prefs.getBoolean("vibration_on", true)
         set(value) = prefs.edit().putBoolean("vibration_on", value).apply()
 
+    var fakeAdsOn: Boolean
+        get() = prefs.getBoolean("fake_ads_on", true)
+        set(value) = prefs.edit().putBoolean("fake_ads_on", value).apply()
+
     // ---------- Envoi des scores au serveur ----------
 
     /** Meilleure partie de la semaine pas encore envoyée (score, durée en s, sauts). */
