@@ -38,7 +38,7 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
   dos, ailes de papillon, jetpack) et traînées pendant les sauts (étoiles, bulles, notes, cœurs,
   arc-en-ciel), à débloquer avec les points ou à acheter avec les pièces.
 - **Missions du jour** (3 missions + 1 défi, nouvelles chaque jour) qui rapportent des pièces,
-  +50 pièces si les 3 missions sont terminées.
+  +25 pièces si les 3 missions sont terminées.
 - **Décor évolutif** : matin, journée, coucher de soleil, nuit étoilée, aurore puis espace au
   fil du score.
 - **Effets** : poussière à l'atterrissage, étincelles sur les parfaits et les pièces, débris

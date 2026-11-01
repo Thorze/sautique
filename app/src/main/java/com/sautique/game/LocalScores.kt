@@ -71,8 +71,21 @@ class LocalScores(context: Context) : KeyValueStore {
 
     private fun key(item: Skins.Item) = item.slot.key + ":" + item.id
 
-    /** Un élément est utilisable s'il est débloqué par les points ou acheté. */
-    fun available(item: Skins.Item) = if (item.isShop) owns(item) else item.cost <= totalPoints
+    /** Un élément est utilisable s'il est débloqué par les points, acheté, ou déjà acquis avant la v5.1. */
+    fun available(item: Skins.Item): Boolean {
+        migrateCosts()
+        return if (item.isShop) owns(item)
+        else item.cost <= totalPoints || prefs.getStringSet("owned", emptySet())!!.contains(key(item))
+    }
+
+    /** Rééquilibrage v5.1 : ce qui était déjà débloqué avec les anciens seuils reste acquis. */
+    private fun migrateCosts() {
+        if (prefs.getBoolean("costs_v2", false)) return
+        val pts = totalPoints
+        val owned = HashSet(prefs.getStringSet("owned", emptySet())!!)
+        for ((k, oldCost) in Skins.legacyCosts) if (oldCost <= pts) owned += k
+        prefs.edit().putStringSet("owned", owned).putBoolean("costs_v2", true).apply()
+    }
 
     // ---------- Réglages ----------
 

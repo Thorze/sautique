@@ -36,7 +36,7 @@ class Mission(val type: MissionType, val target: Int, val reward: Int, val chall
 class DailyMissions(private val store: KeyValueStore, private val today: () -> String) {
 
     companion object {
-        const val ALL_DONE_REWARD = 50
+        const val ALL_DONE_REWARD = 25
 
         private val easy = mapOf(
             MissionType.SCORE to listOf(15, 20, 25),
@@ -63,11 +63,11 @@ class DailyMissions(private val store: KeyValueStore, private val today: () -> S
             val list = types.map { t ->
                 val targets = easy.getValue(t)
                 val i = rnd.nextInt(targets.size)
-                Mission(t, targets[i], 10 + 10 * i, challenge = false)
+                Mission(t, targets[i], 5 + 5 * i, challenge = false)
             }
             val ht = hard.keys.toList()[rnd.nextInt(hard.size)]
             val htargets = hard.getValue(ht)
-            return list + Mission(ht, htargets[rnd.nextInt(htargets.size)], 100, challenge = true)
+            return list + Mission(ht, htargets[rnd.nextInt(htargets.size)], 50, challenge = true)
         }
     }
 

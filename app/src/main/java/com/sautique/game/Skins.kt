@@ -33,63 +33,92 @@ object Skins {
     val items: List<Item> = listOf(
         // Formes
         Item(Slot.SHAPE, "cube", "Cube", 0),
-        Item(Slot.SHAPE, "boule", "Boule", 30),
-        Item(Slot.SHAPE, "cylindre", "Cylindre", 120),
-        Item(Slot.SHAPE, "tour", "Tour", 300),
+        Item(Slot.SHAPE, "boule", "Boule", 150),
+        Item(Slot.SHAPE, "cylindre", "Cylindre", 500),
+        Item(Slot.SHAPE, "tour", "Tour", 1200),
 
         // Couleurs
         Item(Slot.COLOR, "orange", "Orange", 0, 0xFFFF7A45.toInt()),
         Item(Slot.COLOR, "bleu", "Bleu", 0, 0xFF3F8EFC.toInt()),
         Item(Slot.COLOR, "vert", "Vert", 0, 0xFF3DBE6E.toInt()),
         Item(Slot.COLOR, "rose", "Rose", 0, 0xFFF06292.toInt()),
-        Item(Slot.COLOR, "violet", "Violet", 15, 0xFF8E5CD9.toInt()),
-        Item(Slot.COLOR, "jaune", "Jaune", 40, 0xFFFFC93C.toInt()),
-        Item(Slot.COLOR, "turquoise", "Turquoise", 80, 0xFF26C6DA.toInt()),
-        Item(Slot.COLOR, "rouge", "Rouge", 150, 0xFFE53950.toInt()),
-        Item(Slot.COLOR, "noir", "Nuit", 250, 0xFF3A3F58.toInt()),
-        Item(Slot.COLOR, "or", "Or", 400, 0xFFE0B03C.toInt()),
-        Item(Slot.COLOR, RAINBOW, "Arc-en-ciel", 0, 0xFFFF5DA2.toInt(), price = 200),
-        Item(Slot.COLOR, GALAXY, "Galaxie", 0, 0xFF4B2C83.toInt(), price = 300),
+        Item(Slot.COLOR, "violet", "Violet", 60, 0xFF8E5CD9.toInt()),
+        Item(Slot.COLOR, "jaune", "Jaune", 150, 0xFFFFC93C.toInt()),
+        Item(Slot.COLOR, "turquoise", "Turquoise", 300, 0xFF26C6DA.toInt()),
+        Item(Slot.COLOR, "rouge", "Rouge", 500, 0xFFE53950.toInt()),
+        Item(Slot.COLOR, "noir", "Nuit", 800, 0xFF3A3F58.toInt()),
+        Item(Slot.COLOR, "or", "Or", 1500, 0xFFE0B03C.toInt()),
+        Item(Slot.COLOR, RAINBOW, "Arc-en-ciel", 0, 0xFFFF5DA2.toInt(), price = 600),
+        Item(Slot.COLOR, GALAXY, "Galaxie", 0, 0xFF4B2C83.toInt(), price = 900),
 
         // Lunettes
         Item(Slot.GLASSES, NONE, "Aucune", 0),
-        Item(Slot.GLASSES, "rondes", "Rondes", 20),
-        Item(Slot.GLASSES, "soleil", "Soleil", 90),
-        Item(Slot.GLASSES, "coeur", "Cœurs", 250),
-        Item(Slot.GLASSES, "pixel", "Pixel", 0, price = 50),
-        Item(Slot.GLASSES, "monocle", "Monocle", 0, price = 90),
+        Item(Slot.GLASSES, "rondes", "Rondes", 100),
+        Item(Slot.GLASSES, "soleil", "Soleil", 400),
+        Item(Slot.GLASSES, "coeur", "Cœurs", 900),
+        Item(Slot.GLASSES, "pixel", "Pixel", 0, price = 150),
+        Item(Slot.GLASSES, "monocle", "Monocle", 0, price = 250),
 
         // Chapeaux
         Item(Slot.HAT, NONE, "Aucun", 0),
-        Item(Slot.HAT, "casquette", "Casquette", 40),
-        Item(Slot.HAT, "hautdeforme", "Haut-de-forme", 180),
-        Item(Slot.HAT, "couronne", "Couronne", 500),
-        Item(Slot.HAT, "magicien", "Magicien", 0, price = 60),
-        Item(Slot.HAT, "viking", "Viking", 0, price = 120),
-        Item(Slot.HAT, "aureole", "Auréole", 0, price = 250),
-        Item(Slot.HAT, "bonnet", "Bonnet", 110),
-        Item(Slot.HAT, "cowboy", "Cowboy", 0, price = 90),
+        Item(Slot.HAT, "casquette", "Casquette", 200),
+        Item(Slot.HAT, "hautdeforme", "Haut-de-forme", 700),
+        Item(Slot.HAT, "couronne", "Couronne", 2000),
+        Item(Slot.HAT, "magicien", "Magicien", 0, price = 200),
+        Item(Slot.HAT, "viking", "Viking", 0, price = 350),
+        Item(Slot.HAT, "aureole", "Auréole", 0, price = 700),
+        Item(Slot.HAT, "bonnet", "Bonnet", 450),
+        Item(Slot.HAT, "cowboy", "Cowboy", 0, price = 300),
 
         // Chaussures
         Item(Slot.SHOES, NONE, "Aucune", 0),
-        Item(Slot.SHOES, "baskets", "Baskets", 70),
-        Item(Slot.SHOES, "bottes", "Bottes", 220),
-        Item(Slot.SHOES, "fusees", "Fusées", 0, price = 150),
+        Item(Slot.SHOES, "baskets", "Baskets", 300),
+        Item(Slot.SHOES, "bottes", "Bottes", 850),
+        Item(Slot.SHOES, "fusees", "Fusées", 0, price = 450),
 
         // Dos
         Item(Slot.BACK, NONE, "Rien", 0),
-        Item(Slot.BACK, "cape", "Cape", 60),
-        Item(Slot.BACK, "sac", "Sac à dos", 160),
-        Item(Slot.BACK, "papillon", "Ailes de papillon", 0, price = 120),
-        Item(Slot.BACK, "jetpack", "Jetpack", 0, price = 200),
+        Item(Slot.BACK, "cape", "Cape", 250),
+        Item(Slot.BACK, "sac", "Sac à dos", 600),
+        Item(Slot.BACK, "papillon", "Ailes de papillon", 0, price = 400),
+        Item(Slot.BACK, "jetpack", "Jetpack", 0, price = 650),
 
         // Traînée pendant les sauts
         Item(Slot.TRAIL, NONE, "Aucune", 0),
-        Item(Slot.TRAIL, "etoiles", "Étoiles", 50),
-        Item(Slot.TRAIL, "bulles", "Bulles", 140),
-        Item(Slot.TRAIL, "notes", "Notes", 0, price = 80),
-        Item(Slot.TRAIL, "coeurs", "Cœurs", 0, price = 100),
-        Item(Slot.TRAIL, "arcenciel", "Arc-en-ciel", 0, price = 180)
+        Item(Slot.TRAIL, "etoiles", "Étoiles", 200),
+        Item(Slot.TRAIL, "bulles", "Bulles", 550),
+        Item(Slot.TRAIL, "notes", "Notes", 0, price = 250),
+        Item(Slot.TRAIL, "coeurs", "Cœurs", 0, price = 300),
+        Item(Slot.TRAIL, "arcenciel", "Arc-en-ciel", 0, price = 500)
+    )
+
+    /**
+     * Anciens seuils (avant le rééquilibrage de la v5.1) : les éléments déjà débloqués avec
+     * ces seuils restent acquis.
+     */
+    val legacyCosts = mapOf(
+        "shape:boule" to 30,
+        "shape:cylindre" to 120,
+        "shape:tour" to 300,
+        "color:violet" to 15,
+        "color:jaune" to 40,
+        "color:turquoise" to 80,
+        "color:rouge" to 150,
+        "color:noir" to 250,
+        "color:or" to 400,
+        "glasses:rondes" to 20,
+        "glasses:soleil" to 90,
+        "glasses:coeur" to 250,
+        "hat:casquette" to 40,
+        "hat:hautdeforme" to 180,
+        "hat:couronne" to 500,
+        "hat:bonnet" to 110,
+        "shoes:baskets" to 70,
+        "shoes:bottes" to 220,
+        "back:cape" to 60,
+        "back:sac" to 160,
+        "trail:etoiles" to 50,
+        "trail:bulles" to 140,
     )
 
     fun bySlot(slot: Slot) = items.filter { it.slot == slot }

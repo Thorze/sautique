@@ -413,8 +413,8 @@ class GameView(context: Context) : View(context) {
         // Pièces : une de temps en temps, rarement une grosse
         val c = Random.nextFloat()
         next.coin = when {
-            c < 0.04f -> 5
-            c < 0.30f -> 1
+            c < 0.02f -> 5
+            c < 0.18f -> 1
             else -> 0
         }
         // Un cœur (vie bonus) sur la plateforme du 30e, 60e… saut

@@ -16,15 +16,24 @@ class SkinsTest {
 
     @Test
     fun unlocksBetweenPointValues() {
-        val labels = Skins.unlockedBetween(0, 30).map { it.id }
+        val labels = Skins.unlockedBetween(0, 150).map { it.id }
         assertTrue("boule" in labels)
-        assertTrue(Skins.unlockedBetween(30, 30).isEmpty())
+        assertTrue(Skins.unlockedBetween(150, 150).isEmpty())
     }
 
     @Test
     fun shopItemsAreNotUnlockedByPoints() {
         assertTrue(Skins.items.filter { it.price > 0 }.isNotEmpty())
         assertTrue(Skins.unlockedBetween(0, 1_000_000).none { it.price > 0 })
+    }
+
+    @Test
+    fun legacyCostsWereLowerThanNewOnes() {
+        for ((key, old) in Skins.legacyCosts) {
+            val (slot, id) = key.split(":")
+            val item = Skins.items.first { it.slot.key == slot && it.id == id }
+            assertTrue(key, item.cost >= old)
+        }
     }
 
     @Test
