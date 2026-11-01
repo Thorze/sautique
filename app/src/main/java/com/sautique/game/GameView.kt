@@ -146,6 +146,20 @@ class GameView(context: Context) : View(context) {
     internal var lookHat = Skins.NONE
     internal var lookShoes = Skins.NONE
     internal var lookColor = "orange"
+    internal var lookBack = Skins.NONE
+    internal var lookTrail = Skins.NONE
+    internal var trailTimer = 0f
+
+    // Vies bonus : un cœur à ramasser tous les [lifeEvery] sauts
+    internal val lifeEvery = 30
+    internal val maxLives = 3
+    internal var lives = 0
+    internal var reviveT = 0f
+    internal val reviveDuration = 1.5f
+    internal var reviveFromX = 0f
+    internal var reviveFromY = 0f
+    internal var reviveFromZ = 0f
+    internal var reviveTarget: Platform? = null
     internal var unlockedLabels: List<String> = emptyList()
 
     // Ecran Personnage
@@ -347,6 +361,7 @@ class GameView(context: Context) : View(context) {
         perfectBarAlpha = 0f
         runTime = 0f
         coinsThisRun = 0
+        lives = 0
         pendingBounce = false
         autoJump = false
         particles.clear()
@@ -401,6 +416,11 @@ class GameView(context: Context) : View(context) {
             c < 0.04f -> 5
             c < 0.30f -> 1
             else -> 0
+        }
+        // Un cœur (vie bonus) sur la plateforme du 30e, 60e… saut
+        if ((jumps + 1) % lifeEvery == 0 && lives < maxLives) {
+            next.heart = true
+            next.coin = 0
         }
         platforms.add(next)
         while (platforms.size > 6) platforms.removeAt(0)
@@ -516,6 +536,63 @@ class GameView(context: Context) : View(context) {
         missionEvent(MissionType.COINS, n)
     }
 
+    /** Ramasse le cœur : une vie de plus. */
+    internal fun collectHeart(p: Platform) {
+        p.heart = false
+        lives = (lives + 1).coerceAtMost(maxLives)
+        val x = sx(p.cx, p.cz) + camX
+        val y = sy(p.cx, 0.6f, p.cz) + camY
+        spawnSparkles(x, y, Color.parseColor("#FF4D8D"), 18)
+        popups.add(Popup("+1 vie ❤️", x, y - k * 0.4f, 1.1f))
+        banners += Banner("❤️ Vie bonus ! Si tu tombes, tu reviens", 2.6f)
+        sounds.play(Sounds.Sfx.UNLOCK)
+    }
+
+    /** Le personnage tombait mais avait une vie : il remonte avec des ailes d'ange. */
+    internal fun startRevive() {
+        lives--
+        reviveFromX = px
+        reviveFromY = py
+        reviveFromZ = pz
+        // Retour sur la plateforme de départ, ou sur la suivante si elle s'est effondrée
+        reviveTarget = if (!current.collapsed) current else next
+        reviveT = 0f
+        perfectStreak = 0
+        gameOverReason = null
+        banners += Banner(if (lives > 0) "😇 Sauvé ! Il te reste $lives ❤️" else "😇 Sauvé ! Plus de vie en réserve", 2.6f)
+        sounds.play(Sounds.Sfx.REVIVE)
+        state = State.REVIVE
+    }
+
+    internal fun updateRevive(dt: Float) {
+        val target = reviveTarget ?: return
+        reviveT += dt
+        val f = (reviveT / reviveDuration).coerceIn(0f, 1f)
+        val e = f * f * (3f - 2f * f)
+        px = reviveFromX + (target.cx - reviveFromX) * e
+        pz = reviveFromZ + (target.cz - reviveFromZ) * e
+        py = reviveFromY * (1f - e) + sin(f * Math.PI.toFloat()) * 1.6f
+        if (f >= 1f) {
+            py = 0f
+            px = target.cx
+            pz = target.cz
+            landSquash = 1f
+            spawnDust(px, pz)
+            if (target.crumbly && target.crumbleT >= 0f) target.crumbleT = 0f
+            if (target === next) {
+                // On repart de la plateforme suivante
+                next.frozen = true
+                if (next.coin > 0) collectCoin(next)
+                if (next.heart) collectHeart(next)
+                current = next
+                spawnNext()
+                updateCameraTarget()
+            }
+            reviveTarget = null
+            state = State.READY
+        }
+    }
+
     /** Parties en cours où l'on peut mettre en pause. */
     internal fun canPause() = when (state) {
         State.READY -> jumps > 0 || score > 0
@@ -628,6 +705,7 @@ class GameView(context: Context) : View(context) {
         updateEffects(dt)
         for (p in platforms) p.update(dt)
         if (state == State.CHARGING || state == State.JUMPING || state == State.FALLING || state == State.BONUS ||
+            state == State.REVIVE ||
             (state == State.READY && jumps > 0)) runTime += dt
         if (state == State.READY && pendingBounce) {
             bounceDelay -= dt
@@ -676,6 +754,7 @@ class GameView(context: Context) : View(context) {
             State.CHARGING -> charge = min(charge + dt, maxChargeTime)
 
             State.JUMPING -> {
+                emitTrail(dt)
                 jumpT += dt
                 val f = min(jumpT / jumpDuration, 1f)
                 val pos = jumpFrom + jumpDist * f
@@ -699,10 +778,12 @@ class GameView(context: Context) : View(context) {
                     FallAnim.SPIN -> fallVy += 30f * dt
                 }
                 py -= fallVy * dt
-                if (sy(px, py + 1.2f, pz) > h) endGame(gameOverReason)
+                if (lives > 0 && fallT > 0.6f) startRevive()
+                else if (sy(px, py + 1.2f, pz) > h) endGame(gameOverReason)
             }
 
             State.BONUS -> updateBonus(dt)
+            State.REVIVE -> updateRevive(dt)
 
             State.GAME_OVER -> gameOverTime += dt
             State.CUSTOMIZE -> if (custMsgT > 0f) custMsgT -= dt
@@ -754,6 +835,7 @@ class GameView(context: Context) : View(context) {
                     else -> sounds.play(Sounds.Sfx.LAND)
                 }
                 if (next.coin > 0) collectCoin(next)
+                if (next.heart) collectHeart(next)
                 missionEvent(MissionType.JUMPS)
                 if (perfect) {
                     missionEvent(MissionType.PERFECTS)
@@ -844,7 +926,8 @@ class GameView(context: Context) : View(context) {
         // Score en haut et en gros
         canvas.drawText(score.toString(), w / 2f, insetTop + h * 0.17f, scorePaint)
         textPaint.textSize = w * 0.045f
-        canvas.drawText("Record : $best   🪙 ${profile.coins}", w / 2f, insetTop + h * 0.17f + w * 0.08f, textPaint)
+        val livesText = if (lives > 0) "   " + "❤️".repeat(lives) else ""
+        canvas.drawText("Record : $best   🪙 ${profile.coins}$livesText", w / 2f, insetTop + h * 0.17f + w * 0.08f, textPaint)
         drawBanners(canvas)
 
         buttons.clear()

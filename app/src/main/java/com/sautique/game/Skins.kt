@@ -12,7 +12,9 @@ object Skins {
         COLOR("color", "Couleur"),
         GLASSES("glasses", "Lunettes"),
         HAT("hat", "Chapeau"),
-        SHOES("shoes", "Chaussures")
+        SHOES("shoes", "Chaussures"),
+        BACK("back", "Dos"),
+        TRAIL("trail", "Traînée")
     }
 
     class Item(
@@ -65,12 +67,29 @@ object Skins {
         Item(Slot.HAT, "magicien", "Magicien", 0, price = 60),
         Item(Slot.HAT, "viking", "Viking", 0, price = 120),
         Item(Slot.HAT, "aureole", "Auréole", 0, price = 250),
+        Item(Slot.HAT, "bonnet", "Bonnet", 110),
+        Item(Slot.HAT, "cowboy", "Cowboy", 0, price = 90),
 
         // Chaussures
         Item(Slot.SHOES, NONE, "Aucune", 0),
         Item(Slot.SHOES, "baskets", "Baskets", 70),
         Item(Slot.SHOES, "bottes", "Bottes", 220),
-        Item(Slot.SHOES, "fusees", "Fusées", 0, price = 150)
+        Item(Slot.SHOES, "fusees", "Fusées", 0, price = 150),
+
+        // Dos
+        Item(Slot.BACK, NONE, "Rien", 0),
+        Item(Slot.BACK, "cape", "Cape", 60),
+        Item(Slot.BACK, "sac", "Sac à dos", 160),
+        Item(Slot.BACK, "papillon", "Ailes de papillon", 0, price = 120),
+        Item(Slot.BACK, "jetpack", "Jetpack", 0, price = 200),
+
+        // Traînée pendant les sauts
+        Item(Slot.TRAIL, NONE, "Aucune", 0),
+        Item(Slot.TRAIL, "etoiles", "Étoiles", 50),
+        Item(Slot.TRAIL, "bulles", "Bulles", 140),
+        Item(Slot.TRAIL, "notes", "Notes", 0, price = 80),
+        Item(Slot.TRAIL, "coeurs", "Cœurs", 0, price = 100),
+        Item(Slot.TRAIL, "arcenciel", "Arc-en-ciel", 0, price = 180)
     )
 
     fun bySlot(slot: Slot) = items.filter { it.slot == slot }

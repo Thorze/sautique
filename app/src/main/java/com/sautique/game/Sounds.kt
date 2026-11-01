@@ -32,6 +32,7 @@ class Sounds(private val context: Context) {
         COIN("piece"),
         WHEEL_TICK("roue"),
         UNLOCK("congratulations", "deblocage"),
+        REVIVE("ange"),
         CLICK("clic")
     }
 

@@ -4,7 +4,7 @@ import android.graphics.RectF
 
 /** Types partagés par les différentes parties du jeu. */
 
-internal enum class State { READY, CHARGING, JUMPING, FALLING, BONUS, GAME_OVER, LEADERBOARD, CUSTOMIZE, SETTINGS, PAUSED, MISSIONS }
+internal enum class State { READY, CHARGING, JUMPING, FALLING, BONUS, GAME_OVER, LEADERBOARD, CUSTOMIZE, SETTINGS, PAUSED, MISSIONS, REVIVE }
 internal enum class FallAnim { SPIN, PANIC, PARACHUTE, CARTOON }
 internal enum class JumpTrick { NONE, FRONTFLIP, BACKFLIP, PIROUETTE, TUCK, DOUBLE_FLIP }
 internal enum class BonusType(val title: String, val hint: String) {
@@ -26,5 +26,13 @@ internal class Banner(val text: String, var life: Float)
 internal class Particle(
     var x: Float, var y: Float, var vx: Float, var vy: Float,
     var life: Float, val maxLife: Float, val size: Float, val color: Int,
-    val gravity: Float, val star: Boolean = false
-)
+    val gravity: Float, val kind: Int = CIRCLE
+) {
+    companion object {
+        const val CIRCLE = 0
+        const val STAR = 1
+        const val NOTE = 2
+        const val HEART = 3
+        const val BUBBLE = 4
+    }
+}

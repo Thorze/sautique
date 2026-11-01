@@ -50,6 +50,9 @@ internal class Platform(
     /** Pièce posée dessus : 0 = aucune, 1 = pièce, 5 = grosse pièce. */
     var coin = 0
 
+    /** Cœur (vie bonus) posé dessus. */
+    var heart = false
+
     // --- Effritement (plateforme fragile) ---
     val crumbly get() = kind == PlatformKind.CRUMBLY
     /** Temps écoulé depuis le début de l'effritement (négatif = pas commencé). */
@@ -227,8 +230,21 @@ internal class Platform(
             strokePaint.strokeWidth = k * 0.035f
             canvas.drawPath(crackPath, strokePaint)
         }
-        if (coin > 0) drawCoin(canvas)
+        if (heart) drawHeartPickup(canvas) else if (coin > 0) drawCoin(canvas)
         canvas.restore()
+    }
+
+    /** Cœur qui bat et flotte au-dessus du centre. */
+    private fun drawHeartPickup(canvas: Canvas) {
+        val beat = 1f + 0.12f * abs(sin(g.time * 5f))
+        val cy = g.isoY(0f, 0.65f, 0f) + sin(g.time * 3f) * k * 0.05f
+        flatOval(0.16f)
+        detailPaint.color = Color.argb(50, 0, 0, 0)
+        canvas.drawOval(oval, detailPaint)
+        detailPaint.color = Color.argb(90, 255, 120, 160)
+        canvas.drawCircle(0f, cy, k * 0.3f * beat, detailPaint)
+        detailPaint.color = Color.parseColor("#FF4D8D")
+        g.drawHeart(canvas, 0f, cy, k * 0.16f * beat, detailPaint)
     }
 
     /** Pièce qui tourne et flotte au-dessus du centre. */

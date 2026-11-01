@@ -101,7 +101,7 @@ internal fun GameView.drawPlayer(canvas: Canvas) {
     if (rotation != 0f) canvas.rotate(rotation, ox, pivotY)
     if (flipScaleX != 1f) canvas.scale(if (abs(flipScaleX) < 0.05f) 0.05f else flipScaleX, 1f, ox, pivotY)
     if (chute) drawParachute(canvas, ox, oy + isoY(0f, py + bodyH, 0f))
-    drawCharacter(canvas, ox, oy, py, scaleW, scaleH, alongX, scared || panic, front)
+    drawCharacter(canvas, ox, oy, py, scaleW, scaleH, alongX, scared || panic, front, angel = state == State.REVIVE)
     canvas.restore()
 
     // Bulles au-dessus de la tête
@@ -163,7 +163,7 @@ internal fun GameView.drawBubble(canvas: Canvas, x: Float, bottomY: Float, text:
 
 internal fun GameView.drawCharacter(
     canvas: Canvas, ox: Float, oy: Float, y0: Float, scaleW: Float, scaleH: Float,
-    dirX: Boolean, scared: Boolean, front: Boolean
+    dirX: Boolean, scared: Boolean, front: Boolean, angel: Boolean = false
 ) {
     canvas.save()
     canvas.translate(ox, oy)
@@ -180,6 +180,78 @@ internal fun GameView.drawCharacter(
     // Direction du regard à l'écran (+x : en haut à droite, +z : en haut à gauche, caméra : vers le bas)
     val fdx = if (front) 0f else if (dirX) 0.866f else -0.866f
     val fdy = if (front) 0.5f else -0.5f
+    val inAir = y0 > 0.05f || state == State.FALLING
+
+    // --- Dos (dessiné avant le corps, il dépasse derrière) ---
+    val bx = -fdx * a * k * 0.9f                 // côté opposé au regard
+    val midY = isoY(0f, y0 + hgt * 0.55f, 0f)
+    val topY = isoY(0f, y1, 0f)
+    val botY = isoY(0f, y0, 0f)
+    fun wing(side: Int, color: Int, len: Float, flap: Float) {
+        canvas.save()
+        canvas.rotate(side * (25f + flap), side * a * k * 0.6f, midY)
+        accPaint.color = color
+        rect.set(side * a * k * 0.4f, midY - len * 0.35f, side * a * k * 0.4f + side * len, midY + len * 0.35f)
+        rect.sort()
+        canvas.drawOval(rect, accPaint)
+        canvas.restore()
+    }
+    when (lookBack) {
+        "cape" -> {
+            val flutter = if (inAir) k * 0.25f else k * 0.06f * sin(time * 3f)
+            tmpPath.reset()
+            tmpPath.moveTo(-a * k * 0.9f, topY + k * 0.08f)
+            tmpPath.lineTo(a * k * 0.9f, topY + k * 0.08f)
+            tmpPath.lineTo(a * k * 1.15f + bx * 1.4f - fdx * flutter, botY + (if (inAir) -k * 0.05f else k * 0.04f))
+            tmpPath.lineTo(-a * k * 1.15f + bx * 1.4f - fdx * flutter, botY + (if (inAir) -k * 0.05f else k * 0.04f))
+            tmpPath.close()
+            accPaint.color = Color.parseColor("#C62839")
+            canvas.drawPath(tmpPath, accPaint)
+        }
+        "sac" -> {
+            accPaint.color = Color.parseColor("#7A5230")
+            rect.set(bx - a * k * 0.55f, midY - k * 0.2f, bx + a * k * 0.55f, midY + k * 0.17f)
+            canvas.drawRoundRect(rect, k * 0.08f, k * 0.08f, accPaint)
+            accPaint.color = Color.parseColor("#5C3C22")
+            rect.set(bx - a * k * 0.4f, midY + k * 0.02f, bx + a * k * 0.4f, midY + k * 0.13f)
+            canvas.drawRoundRect(rect, k * 0.04f, k * 0.04f, accPaint)
+        }
+        "papillon" -> {
+            val flap = sin(time * (if (inAir) 18f else 4f)) * 15f
+            for (side in intArrayOf(-1, 1)) {
+                wing(side, Color.parseColor("#FF8FC7"), k * 0.42f, flap)
+                wing(side, Color.parseColor("#9C6BFF"), k * 0.26f, flap - 30f)
+            }
+        }
+        "jetpack" -> {
+            for (dx in floatArrayOf(-1f, 1f)) {
+                val cx = bx + dx * a * k * 0.38f
+                accPaint.color = Color.parseColor("#9AA3B5")
+                rect.set(cx - k * 0.08f, midY - k * 0.22f, cx + k * 0.08f, midY + k * 0.16f)
+                canvas.drawRoundRect(rect, k * 0.06f, k * 0.06f, accPaint)
+                accPaint.color = Color.parseColor("#E53950")
+                canvas.drawRect(cx - k * 0.08f, midY - k * 0.12f, cx + k * 0.08f, midY - k * 0.08f, accPaint)
+                if (inAir) {
+                    val fl = k * (0.22f + 0.08f * sin(time * 40f + dx))
+                    tmpPath.reset()
+                    tmpPath.moveTo(cx - k * 0.06f, midY + k * 0.16f)
+                    tmpPath.lineTo(cx + k * 0.06f, midY + k * 0.16f)
+                    tmpPath.lineTo(cx, midY + k * 0.16f + fl)
+                    tmpPath.close()
+                    accPaint.color = Color.parseColor("#FF9F1C")
+                    canvas.drawPath(tmpPath, accPaint)
+                }
+            }
+        }
+    }
+    // Ailes d'ange quand il revient grâce à une vie
+    if (angel) {
+        val flap = sin(time * 14f) * 22f
+        for (side in intArrayOf(-1, 1)) {
+            wing(side, Color.argb(240, 255, 255, 255), k * 0.55f, flap)
+            wing(side, Color.argb(255, 235, 240, 250), k * 0.36f, flap - 25f)
+        }
+    }
 
     // --- Chaussures (dessinées avant le corps : il en cache le haut, on voit dépasser les pieds) ---
     if (lookShoes != Skins.NONE) {
@@ -463,6 +535,13 @@ internal fun GameView.drawCharacter(
             canvas.drawCircle(0f, hy - hs * 0.2f, hs * 0.13f, accPaint)
         }
     }
+    if (angel) {
+        accStroke.color = Color.parseColor("#FFD54F")
+        accStroke.strokeWidth = k * 0.035f
+        val ay = isoY(0f, y1, 0f) - k * 0.3f
+        rect.set(-a * k * 0.9f, ay - a * k * 0.28f, a * k * 0.9f, ay + a * k * 0.28f)
+        canvas.drawOval(rect, accStroke)
+    }
     canvas.restore()
 }
 
@@ -476,6 +555,8 @@ internal fun GameView.loadLook() {
     lookGlasses = pick(Skins.Slot.GLASSES)
     lookHat = pick(Skins.Slot.HAT)
     lookShoes = pick(Skins.Slot.SHOES)
+    lookBack = pick(Skins.Slot.BACK)
+    lookTrail = pick(Skins.Slot.TRAIL)
     lookColor = pick(Skins.Slot.COLOR)
     val c = Skins.find(Skins.Slot.COLOR, lookColor).color
     playerTop.color = shade(c, 1.18f)
@@ -511,5 +592,7 @@ internal fun GameView.currentLook(slot: Skins.Slot): String = when (slot) {
     Skins.Slot.GLASSES -> lookGlasses
     Skins.Slot.HAT -> lookHat
     Skins.Slot.SHOES -> lookShoes
+    Skins.Slot.BACK -> lookBack
+    Skins.Slot.TRAIL -> lookTrail
     Skins.Slot.COLOR -> lookColor
 }

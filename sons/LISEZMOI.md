@@ -15,7 +15,7 @@ espaces deviennent `_`, ex. `Oh-yeah.mp3` → `oh_yeah`).
 | `great` | saut réussi, environ 1 fois sur 5 |
 | `congratulations` | nouvel élément de personnage débloqué |
 
-Autres sons facultatifs reconnus : `saut`, `atterrissage`, `effondrement`, `bonus_gagne`,
+Autres sons facultatifs reconnus : `ange` (vie utilisée), `piece` (pièce ramassée), `saut`, `atterrissage`, `effondrement`, `bonus_gagne`,
 `bonus_rate`, `tape`, `etoile`, `roue`, `clic`.
 
 Les fichiers sont en OGG Vorbis (≈ 96 kbit/s pour les musiques) pour garder l'APK léger.

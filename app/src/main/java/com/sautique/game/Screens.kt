@@ -378,26 +378,31 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
     val tabTop = pcy + w * 0.1f
     val tabH = w * 0.085f
     val slots = Skins.Slot.values()
-    val tw = (right - left - w * 0.04f) / slots.size
+    // Onglets sur deux lignes (4 + 3)
     slots.forEachIndexed { i, slot ->
-        val x0 = left + w * 0.02f + i * tw
+        val row = if (i < 4) 0 else 1
+        val inRow = if (row == 0) 4 else slots.size - 4
+        val col = if (row == 0) i else i - 4
+        val cw = (right - left - w * 0.04f) / inRow
+        val x0 = left + w * 0.02f + col * cw
+        val y0 = tabTop + row * (tabH + w * 0.015f)
         drawButton(
-            canvas, RectF(x0 + w * 0.004f, tabTop, x0 + tw - w * 0.004f, tabTop + tabH), slot.title,
-            if (slot == custSlot) tabOnPaint else tabOffPaint, w * 0.03f
+            canvas, RectF(x0 + w * 0.006f, y0, x0 + cw - w * 0.006f, y0 + tabH), slot.title,
+            if (slot == custSlot) tabOnPaint else tabOffPaint, w * 0.034f
         ) { custSlot = slot }
     }
 
     // Eléments de l'onglet
     val pts = profile.totalPoints
     val selected = currentLook(custSlot)
-    val gridTop = tabTop + tabH + w * 0.04f
-    val cellH = w * 0.095f
+    val gridTop = tabTop + 2 * tabH + w * 0.05f
+    val cellH = w * 0.088f
     val cellW = (right - left - w * 0.08f) / 2f
     Skins.bySlot(custSlot).forEachIndexed { i, item ->
         val col = i % 2
         val row = i / 2
         val x0 = left + w * 0.04f + col * cellW
-        val y0 = gridTop + row * (cellH + w * 0.02f)
+        val y0 = gridTop + row * (cellH + w * 0.016f)
         val r = RectF(x0 + w * 0.01f, y0, x0 + cellW - w * 0.01f, y0 + cellH)
         val unlocked = profile.available(item)
         val isSel = item.id == selected

@@ -31,6 +31,12 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
 - **Pièces** à ramasser sur les plateformes (grosse pièce = 5) : elles servent à acheter des
   éléments exclusifs dans l'écran Personnage (lunettes pixel, monocle, chapeaux magicien /
   viking / auréole, chaussures fusées, couleurs arc-en-ciel et galaxie).
+- **Vie bonus** : tous les 30 sauts, un cœur flotte sur une plateforme. Ramassé, il donne une
+  vie (3 max) : en cas de chute, le personnage revient avec des ailes d'ange sur sa plateforme
+  et la partie continue sans perdre le score.
+- **Collection** : formes, couleurs, lunettes, chapeaux, chaussures, objets de dos (cape, sac à
+  dos, ailes de papillon, jetpack) et traînées pendant les sauts (étoiles, bulles, notes, cœurs,
+  arc-en-ciel), à débloquer avec les points ou à acheter avec les pièces.
 - **Missions du jour** (3 missions + 1 défi, nouvelles chaque jour) qui rapportent des pièces,
   +50 pièces si les 3 missions sont terminées.
 - **Décor évolutif** : matin, journée, coucher de soleil, nuit étoilée, aurore puis espace au

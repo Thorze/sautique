@@ -31,7 +31,7 @@ internal fun GameView.spawnSparkles(x: Float, y: Float, color: Int, count: Int =
         val sp = k * (1.5f + Random.nextFloat() * 2f)
         particles += Particle(
             x, y, cos(a) * sp, sin(a) * sp - k * 1.2f,
-            0.7f, 0.7f, k * (0.06f + Random.nextFloat() * 0.05f), color, k * 4f, star = true
+            0.7f, 0.7f, k * (0.06f + Random.nextFloat() * 0.05f), color, k * 4f, Particle.STAR
         )
     }
 }
@@ -93,8 +93,26 @@ internal fun GameView.drawParticles(canvas: Canvas) {
         accPaint.alpha = (Color.alpha(p.color) * a).toInt()
         val x = p.x - camX + shakeX
         val y = p.y - camY + shakeY
-        if (p.star) drawStar(canvas, x, y, p.size * (0.6f + 0.4f * a), accPaint)
-        else canvas.drawCircle(x, y, p.size * (1.5f - 0.5f * a), accPaint)
+        when (p.kind) {
+            Particle.STAR -> drawStar(canvas, x, y, p.size * (0.6f + 0.4f * a), accPaint)
+            Particle.HEART -> drawHeart(canvas, x, y, p.size, accPaint)
+            Particle.NOTE -> {
+                bangPaint.color = p.color
+                bangPaint.alpha = accPaint.alpha
+                bangPaint.textSize = p.size * 3f
+                canvas.drawText("♪", x, y, bangPaint)
+                bangPaint.color = Color.parseColor("#E53950")
+                bangPaint.alpha = 255
+            }
+            Particle.BUBBLE -> {
+                accStroke.color = p.color
+                accStroke.alpha = accPaint.alpha
+                accStroke.strokeWidth = k * 0.015f
+                canvas.drawCircle(x, y, p.size * (1.6f - 0.6f * a), accStroke)
+                accStroke.alpha = 255
+            }
+            else -> canvas.drawCircle(x, y, p.size * (1.5f - 0.5f * a), accPaint)
+        }
     }
     accPaint.alpha = 255
 }
@@ -171,4 +189,43 @@ internal fun GameView.drawSky(canvas: Canvas) {
         }
     }
     accPaint.alpha = 255
+}
+
+/** Petit cœur centré en (x, y). */
+internal fun GameView.drawHeart(canvas: Canvas, x: Float, y: Float, sz: Float, paint: android.graphics.Paint) {
+    tmpPath.reset()
+    tmpPath.moveTo(x, y + sz * 0.9f)
+    tmpPath.cubicTo(x - sz * 1.6f, y - sz * 0.2f, x - sz * 0.6f, y - sz * 1.3f, x, y - sz * 0.45f)
+    tmpPath.cubicTo(x + sz * 0.6f, y - sz * 1.3f, x + sz * 1.6f, y - sz * 0.2f, x, y + sz * 0.9f)
+    tmpPath.close()
+    canvas.drawPath(tmpPath, paint)
+}
+
+/** Traînée choisie dans l'écran Personnage, émise pendant les sauts. */
+internal fun GameView.emitTrail(dt: Float) {
+    if (lookTrail == Skins.NONE) return
+    trailTimer -= dt
+    if (trailTimer > 0f) return
+    trailTimer = 0.035f
+    val x = sx(px, pz) + camX + (Random.nextFloat() - 0.5f) * k * 0.3f
+    val y = sy(px, py + 0.25f, pz) + camY + (Random.nextFloat() - 0.5f) * k * 0.3f
+    val drift = (Random.nextFloat() - 0.5f) * k * 0.4f
+    when (lookTrail) {
+        "etoiles" -> particles += Particle(x, y, drift, k * 0.3f, 0.6f, 0.6f, k * 0.07f, Color.parseColor("#FFD54F"), 0f, Particle.STAR)
+        "bulles" -> particles += Particle(x, y, drift, -k * 0.5f, 0.8f, 0.8f, k * 0.06f, Color.argb(220, 160, 220, 255), 0f, Particle.BUBBLE)
+        "notes" -> {
+            if (Random.nextInt(3) == 0) {
+                particles += Particle(x, y, drift, -k * 0.6f, 0.9f, 0.9f, k * 0.09f,
+                    listOf("#3F8EFC", "#8E5CD9", "#2E3A59")[Random.nextInt(3)].let { Color.parseColor(it) }, 0f, Particle.NOTE)
+            }
+        }
+        "coeurs" -> if (Random.nextInt(2) == 0) {
+            particles += Particle(x, y, drift, -k * 0.4f, 0.8f, 0.8f, k * 0.06f, Color.parseColor("#FF4D8D"), 0f, Particle.HEART)
+        }
+        "arcenciel" -> {
+            val hue = (time * 360f) % 360f
+            particles += Particle(sx(px, pz) + camX, sy(px, py + 0.25f, pz) + camY, 0f, 0f, 0.5f, 0.5f, k * 0.09f,
+                Color.HSVToColor(floatArrayOf(hue, 0.75f, 1f)), 0f, Particle.CIRCLE)
+        }
+    }
 }
