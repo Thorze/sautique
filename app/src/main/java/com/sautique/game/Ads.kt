@@ -39,10 +39,11 @@ internal object FakeAds {
             "Obtenir un devis en 3 clics", c("#EAF2FB"), c("#1D3557"), c("#1D4E89"), c("#1D4E89")
         ),
         FakeAd(
-            "cereales", "POUIC-POUIC présente",
-            "Marre de glisser au bord des plateformes ?",
+            "cereales", "🍫 La Barre Céréalique",
+            "Le snack officiel des sauteurs du dimanche",
             listOf(
-                "🥣 Prenez une dose de Cube-Croûtes !",
+                "Marre de glisser au bord des plateformes ?",
+                "Prenez une Barre Céréalique !",
                 "+400 % d'adhérence aux angles droits",
                 "0 % de matières grasses",
                 "100 % carton recyclé (c'est aussi le goût)"
@@ -379,30 +380,37 @@ private fun GameView.drawAdArt(canvas: Canvas, ad: FakeAd, cx: Float, cy: Float,
             canvas.drawText("AGRÉÉ", cx + s * 0.6f, cy - s * 0.26f, adBold)
         }
         "cereales" -> {
-            // Paquet de céréales années 90 penché, mascotte à lunettes de soleil
+            // Barre céréalique dans son emballage, penchée, avec des miettes
             canvas.save()
-            canvas.rotate(-6f, cx - s * 0.2f, cy)
-            rect.set(cx - s * 0.52f, cy - s * 0.46f, cx + s * 0.08f, cy + s * 0.46f)
+            canvas.rotate(-14f, cx - s * 0.2f, cy)
+            adPaint.color = Color.parseColor("#B71C2C")
+            for (end in floatArrayOf(-0.66f, 0.21f)) {
+                for (i in 0 until 4) {
+                    val y0 = cy - s * 0.14f + i * s * 0.07f
+                    rect.set(cx + end * s, y0, cx + (end + 0.06f) * s, y0 + s * 0.07f)
+                    canvas.drawRect(rect, adPaint)
+                }
+            }
+            rect.set(cx - s * 0.62f, cy - s * 0.15f, cx + s * 0.23f, cy + s * 0.15f)
             adPaint.color = Color.parseColor("#E53950")
-            canvas.drawRoundRect(rect, s * 0.03f, s * 0.03f, adPaint)
-            rect.set(cx - s * 0.48f, cy - s * 0.4f, cx + s * 0.04f, cy - s * 0.12f)
+            canvas.drawRoundRect(rect, s * 0.04f, s * 0.04f, adPaint)
+            rect.set(cx - s * 0.52f, cy - s * 0.11f, cx + s * 0.08f, cy + s * 0.11f)
             adPaint.color = Color.parseColor("#FFC93C")
-            canvas.drawRoundRect(rect, s * 0.03f, s * 0.03f, adPaint)
+            canvas.drawRoundRect(rect, s * 0.04f, s * 0.04f, adPaint)
             adBold.color = Color.parseColor("#E53950")
-            adBold.textSize = s * 0.1f
-            canvas.drawText("CUBE", cx - s * 0.22f, cy - s * 0.27f, adBold)
-            canvas.drawText("CROÛTES", cx - s * 0.22f, cy - s * 0.16f, adBold)
-            // Bol de céréales cubiques
-            rect.set(cx - s * 0.44f, cy + s * 0.02f, cx, cy + s * 0.34f)
-            adPaint.color = Color.WHITE
-            canvas.drawArc(rect, 0f, 180f, true, adPaint)
-            for (i in 0 until 7) {
-                adPaint.color = if (i % 2 == 0) Color.parseColor("#FFB74D") else Color.parseColor("#F57C00")
-                val bx = cx - s * 0.4f + i * s * 0.055f
-                rect.set(bx, cy + s * 0.12f - (i % 3) * s * 0.03f, bx + s * 0.06f, cy + s * 0.18f - (i % 3) * s * 0.03f)
+            adBold.textSize = s * 0.085f
+            canvas.drawText("BARRE", cx - s * 0.22f, cy - s * 0.01f, adBold)
+            adBold.textSize = s * 0.062f
+            canvas.drawText("CÉRÉALIQUE", cx - s * 0.22f, cy + s * 0.075f, adBold)
+            canvas.restore()
+            // Miettes
+            for (i in 0 until 6) {
+                adPaint.color = if (i % 2 == 0) Color.parseColor("#C68642") else Color.parseColor("#8D5524")
+                val bx = cx - s * 0.5f + i * s * 0.11f
+                val byy = cy + s * 0.32f + (i % 3) * s * 0.03f
+                rect.set(bx, byy, bx + s * 0.04f, byy + s * 0.04f)
                 canvas.drawRect(rect, adPaint)
             }
-            canvas.restore()
             // Étoile « +400 % »
             canvas.save()
             canvas.rotate(12f + 4f * sin(t * 5f), cx - s * 0.5f, cy - s * 0.42f)

@@ -13,9 +13,9 @@ const FakeAds = (() => {
         ['✔ Arêtes écornées remboursées jusqu\'à 100\u00A0%', '✔ Rapatriement depuis le vide infini', '✔ Option « Airbag » pour boules et cylindres'],
         'Franchise : 3 sauts. Hors plateformes qui s\'effritent, trampolines et gravité. Offre soumise à l\'avis de nos experts en maladresse.',
         'Obtenir un devis en 3 clics', c('#EAF2FB'), c('#1D3557'), c('#1D4E89'), c('#1D4E89')),
-      A('cereales', 'POUIC-POUIC présente',
-        'Marre de glisser au bord des plateformes ?',
-        ['🥣 Prenez une dose de Cube-Croûtes !', '+400 % d\'adhérence aux angles droits', '0 % de matières grasses', '100 % carton recyclé (c\'est aussi le goût)'],
+      A('cereales', '🍫 La Barre Céréalique',
+        'Le snack officiel des sauteurs du dimanche',
+        ['Marre de glisser au bord des plateformes ?', 'Prenez une Barre Céréalique !', '+400 % d\'adhérence aux angles droits', '0 % de matières grasses', '100 % carton recyclé (c\'est aussi le goût)'],
         'Ne protège pas des chutes dans le vide sidéral. Pour votre santé, mangez au moins 5 fruits et légumes cubiques par jour.',
         'J\'en veux une palette !', c('#FFF3C4'), c('#5A2D0C'), c('#E53950'), c('#E53950')),
       A('immo', '🏠 Immo Vend-Que-Dalle',
@@ -253,23 +253,31 @@ function drawAdArt(canvas, ad, cx, cy, s) {
       break;
     }
     case 'cereales': {
-      canvas.save(); canvas.rotate(-6, cx - s * 0.2, cy);
-      rect.set(cx - s * 0.52, cy - s * 0.46, cx + s * 0.08, cy + s * 0.46);
-      adPaint.color = PC('#E53950'); canvas.drawRoundRect(rect, s * 0.03, s * 0.03, adPaint);
-      rect.set(cx - s * 0.48, cy - s * 0.4, cx + s * 0.04, cy - s * 0.12);
-      adPaint.color = PC('#FFC93C'); canvas.drawRoundRect(rect, s * 0.03, s * 0.03, adPaint);
-      adBold.color = PC('#E53950'); adBold.textSize = s * 0.1;
-      canvas.drawText('CUBE', cx - s * 0.22, cy - s * 0.27, adBold);
-      canvas.drawText('CROÛTES', cx - s * 0.22, cy - s * 0.16, adBold);
-      rect.set(cx - s * 0.44, cy + s * 0.02, cx, cy + s * 0.34);
-      adPaint.color = Color.WHITE; canvas.drawArc(rect, 0, 180, true, adPaint);
-      for (let i = 0; i < 7; i++) {
-        adPaint.color = i % 2 === 0 ? PC('#FFB74D') : PC('#F57C00');
-        const bx = cx - s * 0.4 + i * s * 0.055;
-        rect.set(bx, cy + s * 0.12 - (i % 3) * s * 0.03, bx + s * 0.06, cy + s * 0.18 - (i % 3) * s * 0.03);
+      // Barre céréalique dans son emballage, penchée, avec des miettes
+      canvas.save(); canvas.rotate(-14, cx - s * 0.2, cy);
+      adPaint.color = PC('#B71C2C');
+      for (const end of [-0.66, 0.21]) {
+        for (let i = 0; i < 4; i++) {
+          const y0 = cy - s * 0.14 + i * s * 0.07;
+          rect.set(cx + end * s, y0, cx + (end + 0.06) * s, y0 + s * 0.07);
+          canvas.drawRect(rect, adPaint);
+        }
+      }
+      rect.set(cx - s * 0.62, cy - s * 0.15, cx + s * 0.23, cy + s * 0.15);
+      adPaint.color = PC('#E53950'); canvas.drawRoundRect(rect, s * 0.04, s * 0.04, adPaint);
+      rect.set(cx - s * 0.52, cy - s * 0.11, cx + s * 0.08, cy + s * 0.11);
+      adPaint.color = PC('#FFC93C'); canvas.drawRoundRect(rect, s * 0.04, s * 0.04, adPaint);
+      adBold.color = PC('#E53950'); adBold.textSize = s * 0.085;
+      canvas.drawText('BARRE', cx - s * 0.22, cy - s * 0.01, adBold);
+      adBold.textSize = s * 0.062;
+      canvas.drawText('CÉRÉALIQUE', cx - s * 0.22, cy + s * 0.075, adBold);
+      canvas.restore();
+      for (let i = 0; i < 6; i++) {
+        adPaint.color = i % 2 === 0 ? PC('#C68642') : PC('#8D5524');
+        const bx = cx - s * 0.5 + i * s * 0.11, byy = cy + s * 0.32 + (i % 3) * s * 0.03;
+        rect.set(bx, byy, bx + s * 0.04, byy + s * 0.04);
         canvas.drawRect(rect, adPaint);
       }
-      canvas.restore();
       canvas.save(); canvas.rotate(12 + 4 * Math.sin(t * 5), cx - s * 0.5, cy - s * 0.42);
       adPaint.color = PC('#FFEB3B'); drawStar(canvas, cx - s * 0.5, cy - s * 0.42, s * 0.16, adPaint);
       adBold.color = PC('#E53950'); adBold.textSize = s * 0.065;
