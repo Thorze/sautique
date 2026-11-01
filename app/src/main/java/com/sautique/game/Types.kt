@@ -13,7 +13,7 @@ internal enum class BonusType {
     val title get() = tr("bonus." + name.lowercase() + ".title")
     val hint get() = tr("bonus." + name.lowercase() + ".hint")
 }
-internal enum class WorldStatus { IDLE, LOADING, OK, ERROR, NOT_CONFIGURED }
+internal enum class WorldStatus { IDLE, LOADING, OK, ERROR, NOT_CONFIGURED, SIGN_IN }
 
 /** Bouton dessiné sur le canvas. */
 internal class Button(val rect: RectF, val action: () -> Unit)

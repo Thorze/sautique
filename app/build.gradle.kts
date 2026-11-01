@@ -44,6 +44,21 @@ android {
         }
     }
 
+    // Deux versions de l'appli :
+    // - github : APK des releases GitHub, mise à jour automatique, classement sur ton serveur ;
+    // - play : Play Store (fichier .aab), classements Google Play Jeux, aucun serveur à toi.
+    flavorDimensions += "store"
+    productFlavors {
+        create("github") {
+            dimension = "store"
+        }
+        create("play") {
+            dimension = "store"
+            buildConfigField("String", "SCORES_URL", "\"\"")
+            buildConfigField("String", "SCORES_KEY", "\"\"")
+        }
+    }
+
     buildTypes {
         val signing = signingConfigs.findByName("sautique") ?: signingConfigs.getByName("debug")
         release {
@@ -68,6 +83,7 @@ android {
 }
 
 dependencies {
+    "playImplementation"("com.google.android.gms:play-services-games-v2:21.0.0")
     testImplementation("junit:junit:4.13.2")
 }
 

@@ -7,26 +7,23 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.util.concurrent.Executors
+import com.sautique.game.OnlineScores.Board
+import com.sautique.game.OnlineScores.Entry
+import com.sautique.game.OnlineScores.SubmitResult
 
 /**
  * Classement mondial hébergé sur ton propre serveur (voir le dossier server/).
  * Les appels réseau se font en arrière-plan, les réponses reviennent sur le thread principal.
  */
-class ScoreServer(baseUrl: String, private val key: String) {
-
-    class Entry(val pseudo: String, val best: Int, val me: Boolean)
-    class Board(val top: List<Entry>, val myRank: Int?)
+class ScoreServer(baseUrl: String, private val key: String) : OnlineScores {
 
     private val base = baseUrl.trim().trimEnd('/')
     private val executor = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
 
-    val configured: Boolean get() = base.isNotBlank()
+    override val configured: Boolean get() = base.isNotBlank()
 
-    enum class SubmitResult { OK, PSEUDO_TAKEN, REJECTED, ERROR }
-
-    /** Envoie une partie (score, durée en secondes, nombre de sauts). Score 0 = mise à jour du pseudo. */
-    fun submit(id: String, pseudo: String, score: Int, durationS: Float, jumps: Int, onDone: (SubmitResult) -> Unit) {
+    override fun submit(id: String, pseudo: String, score: Int, durationS: Float, jumps: Int, onDone: (SubmitResult) -> Unit) {
         val body = JSONObject()
             .put("id", id)
             .put("pseudo", pseudo)
@@ -44,8 +41,7 @@ class ScoreServer(baseUrl: String, private val key: String) {
         }
     }
 
-    /** Classement : [period] = "all" (de tous les temps) ou "week" (semaine en cours). */
-    fun fetchBoard(limit: Int, myId: String, period: String, onResult: (Board?) -> Unit) {
+    override fun fetchBoard(limit: Int, myId: String, period: String, onResult: (Board?) -> Unit) {
         call(onResult, null) {
             val (code, text) = request(
                 "GET", "/api/top?limit=$limit&period=$period&me=" + URLEncoder.encode(myId, "UTF-8"), null
@@ -62,8 +58,7 @@ class ScoreServer(baseUrl: String, private val key: String) {
         }
     }
 
-    /** Le pseudo est-il libre ? null = impossible de vérifier (hors ligne). */
-    fun checkPseudo(name: String, myId: String, onResult: (Boolean?) -> Unit) {
+    override fun checkPseudo(name: String, myId: String, onResult: (Boolean?) -> Unit) {
         call(onResult, null) {
             val (code, text) = request(
                 "GET", "/api/pseudo?name=" + URLEncoder.encode(name, "UTF-8") + "&me=" + URLEncoder.encode(myId, "UTF-8"), null

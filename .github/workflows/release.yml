@@ -70,14 +70,16 @@ jobs:
           UPDATE_REPO: ${{ github.repository }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
-          cp app/build/outputs/apk/release/app-release.apk "Sautique-$VERSION_NAME.apk"
+          ./gradlew assembleGithubRelease bundlePlayRelease --no-daemon
+          cp app/build/outputs/apk/github/release/app-github-release.apk "Sautique-$VERSION_NAME.apk"
+          # Fichier à envoyer dans la Play Console (version Play Store, classements Play Jeux)
+          cp app/build/outputs/bundle/playRelease/app-play-release.aab "Sautique-$VERSION_NAME-playstore.aab"
 
       - name: Publier la release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG" "Sautique-$VERSION_NAME.apk" \
+          gh release create "$TAG" "Sautique-$VERSION_NAME.apk" "Sautique-$VERSION_NAME-playstore.aab" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "Sautique $VERSION_NAME" \

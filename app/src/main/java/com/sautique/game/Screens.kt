@@ -68,32 +68,49 @@ private fun GameView.afterPseudo() {
     if (!profile.customized) openCustomize()
 }
 
+/** Nom du joueur au classement : pseudo choisi (GitHub) ou nom du profil Play Jeux (Play Store). */
+internal fun GameView.myName(): String? = if (online.usesPseudo) profile.pseudo else online.playerName
+
+/** Bouton du joueur : changer de pseudo, ou se connecter à Play Jeux. */
+internal fun GameView.playerChipLabel(): String = when {
+    online.usesPseudo -> "✎ " + (profile.pseudo ?: tr("menu.pseudo"))
+    else -> "🎮 " + (online.playerName ?: tr("play.sign_in"))
+}
+
+internal fun GameView.onPlayerChip() {
+    when {
+        online.usesPseudo -> askPseudo(first = false)
+        !online.signedIn -> online.signIn { syncOnline() }
+        else -> openBoard(2)
+    }
+}
+
 /** Envoie la meilleure partie en attente (et le pseudo) au serveur. */
 internal fun GameView.syncOnline() {
-    val pseudo = profile.pseudo
+    val pseudo = myName()
     if (syncing || !online.configured || pseudo.isNullOrBlank() || !profile.needsSync()) return
     syncing = true
     val score = profile.pendingScore
     online.submit(profile.playerId, pseudo, score, profile.pendingDuration, profile.pendingJumps) { result ->
         syncing = false
         when (result) {
-            ScoreServer.SubmitResult.OK -> {
+            OnlineScores.SubmitResult.OK -> {
                 profile.clearPending(score)
                 profile.syncedPseudo = pseudo
                 if (state == State.LEADERBOARD && boardTab > 0) loadWorld()
                 // Le pseudo ou une nouvelle partie a pu arriver pendant l'envoi
                 if (profile.needsSync() && (profile.pendingScore != score || profile.pseudo != pseudo)) syncOnline()
             }
-            ScoreServer.SubmitResult.PSEUDO_TAKEN -> {
+            OnlineScores.SubmitResult.PSEUDO_TAKEN -> {
                 pseudoConflict = true
                 askPseudo(false, tr("pseudo.taken_sync", "name" to pseudo))
             }
             // Score refusé par le serveur : on ne réessaie pas
-            ScoreServer.SubmitResult.REJECTED -> {
+            OnlineScores.SubmitResult.REJECTED -> {
                 profile.clearPending(score)
                 profile.syncedPseudo = pseudo
             }
-            ScoreServer.SubmitResult.ERROR -> {}
+            OnlineScores.SubmitResult.ERROR -> {}
         }
     }
 }
@@ -114,6 +131,10 @@ internal fun GameView.openBoard(tab: Int) {
 internal fun GameView.loadWorld() {
     if (!online.configured) {
         worldStatus = WorldStatus.NOT_CONFIGURED
+        return
+    }
+    if (!online.signedIn) {
+        worldStatus = WorldStatus.SIGN_IN
         return
     }
     worldStatus = WorldStatus.LOADING
@@ -273,6 +294,18 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
             }
             WorldStatus.NOT_CONFIGURED ->
                 canvas.drawText(tr("board.not_configured"), w / 2f, centerY, greyTextPaint)
+            WorldStatus.SIGN_IN -> {
+                for ((i, l) in wrapText(tr("board.sign_in"), greyTextPaint, right - left - w * 0.12f).withIndex()) {
+                    canvas.drawText(l, w / 2f, centerY - w * 0.12f + i * w * 0.06f, greyTextPaint)
+                }
+                drawButton(canvas, RectF(w * 0.22f, centerY + w * 0.04f, w * 0.78f, centerY + w * 0.15f),
+                    "🎮 " + tr("play.sign_in"), primaryBtnPaint, w * 0.042f) {
+                    online.signIn {
+                        syncOnline()
+                        if (state == State.LEADERBOARD && boardTab > 0) loadWorld()
+                    }
+                }
+            }
             WorldStatus.OK -> {
                 if (worldEntries.isEmpty()) canvas.drawText(tr("board.empty"), w / 2f, centerY, greyTextPaint)
                 canvas.save()
@@ -293,8 +326,8 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
         val rank = worldRank
         val info = when {
             best <= 0 -> tr("board.play_first")
-            rank != null && boardTab == 1 -> tr("board.rank_week", "name" to (profile.pseudo ?: ""), "rank" to rank)
-            rank != null -> tr("board.rank_all", "name" to (profile.pseudo ?: ""), "rank" to rank, "n" to best)
+            rank != null && boardTab == 1 -> tr("board.rank_week", "name" to (myName() ?: ""), "rank" to rank)
+            rank != null -> tr("board.rank_all", "name" to (myName() ?: ""), "rank" to rank, "n" to best)
             boardTab == 1 -> tr("board.no_week")
             else -> tr("board.your_record", "n" to best)
         }
@@ -633,8 +666,8 @@ internal fun GameView.drawGameOver(canvas: Canvas) {
             openMissions()
         }
         y += sh + w * 0.04f
-        drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), "✎ " + (profile.pseudo ?: tr("menu.pseudo")),
-            chipPaint, w * 0.04f) { askPseudo(first = false) }
+        drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), playerChipLabel(),
+            chipPaint, w * 0.04f) { onPlayerChip() }
         drawButton(canvas, RectF(w * 0.51f, y, w * 0.9f, y + sh), tr("menu.character"),
             chipPaint, w * 0.04f) { openCustomize() }
         y += sh + w * 0.08f

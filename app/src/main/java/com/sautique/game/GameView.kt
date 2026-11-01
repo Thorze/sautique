@@ -117,14 +117,14 @@ class GameView(context: Context) : View(context) {
     internal val sfxSlider = RectF()
     internal val musicSlider = RectF()
     internal var dragSlider = 0          // 0 aucun, 1 effets, 2 musique
-    internal val online = ScoreServer(BuildConfig.SCORES_URL, BuildConfig.SCORES_KEY)
+    internal val online: OnlineScores = createOnline(context)
     internal var best = profile.best
     internal var newBest = false
 
     // Classements
     internal var boardReturnState = State.READY
     internal var worldStatus = WorldStatus.IDLE
-    internal var worldEntries: List<ScoreServer.Entry> = emptyList()
+    internal var worldEntries: List<OnlineScores.Entry> = emptyList()
     internal var worldRank: Int? = null
     internal var personalRuns: List<LocalScores.Run> = emptyList()
     internal var syncing = false
@@ -500,7 +500,7 @@ class GameView(context: Context) : View(context) {
     }
 
     internal fun onAttachedToWindowGame() {
-        if (profile.pseudo.isNullOrBlank()) {
+        if (online.usesPseudo && profile.pseudo.isNullOrBlank()) {
             post { askPseudo(first = true) }
         } else {
             syncOnline()
@@ -1012,8 +1012,8 @@ class GameView(context: Context) : View(context) {
             // Raccourcis en haut : pseudo à gauche, classement à droite
             val ch = w * 0.085f
             val top = insetTop + w * 0.04f
-            drawButton(canvas, RectF(w * 0.03f, top, w * 0.33f, top + ch), "✎ " + (profile.pseudo ?: tr("menu.pseudo")), chipPaint, w * 0.036f) {
-                askPseudo(first = false)
+            drawButton(canvas, RectF(w * 0.03f, top, w * 0.33f, top + ch), playerChipLabel(), chipPaint, w * 0.036f) {
+                onPlayerChip()
             }
             drawButton(canvas, RectF(w * 0.67f, top, w * 0.97f, top + ch), tr("menu.board"), chipPaint, w * 0.036f) {
                 openBoard(0)

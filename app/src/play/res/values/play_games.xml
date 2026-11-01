@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Identifiants Google Play Jeux (Play Console → Play Jeux → Configuration et gestion).
+  Tant qu'ils ne sont pas remplis, le classement mondial affiche « non configuré ».
+-->
+<resources>
+    <!-- « ID du projet » (uniquement des chiffres) -->
+    <string name="game_services_project_id" translatable="false">0</string>
+    <!-- ID du classement « Meilleur score » (commence par Cgk…) -->
+    <string name="leaderboard_best" translatable="false">A_REMPLIR</string>
+</resources>
