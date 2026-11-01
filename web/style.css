@@ -17,8 +17,8 @@ html, body {
   position: fixed; visibility: hidden; pointer-events: none;
   padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
 }
-#pseudo-dialog {
-  position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+#pseudo-dialog, #error-box {
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; display: none; align-items: center; justify-content: center;
   background: rgba(10, 15, 30, 0.6); padding: 16px; z-index: 10;
 }
 #pseudo-dialog.open { display: flex; }
@@ -39,3 +39,8 @@ html, body {
   background: var(--accent); color: #fff; cursor: pointer;
 }
 .actions button.secondary { background: #E3E7EE; color: var(--ink); }
+#error-box { display: none; z-index: 20; }
+#error-text {
+  white-space: pre-wrap; word-break: break-word; font-size: 0.75rem; max-height: 40vh; overflow: auto;
+  background: #F1F3F7; border-radius: 10px; padding: 10px; color: #5C3C22; -webkit-user-select: text; user-select: text;
+}
