@@ -8,3 +8,6 @@ captures/
 .externalNativeBuild/
 .cxx/
 __pycache__/
+
+# Copie locale des langues (le site publié les copie depuis langues/)
+web/lang/

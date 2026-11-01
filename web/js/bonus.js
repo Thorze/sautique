@@ -2,11 +2,8 @@
 // Niveaux bonus (équivalent de Bonus.kt).
 
 const BONUS_TYPES = [
-  { id: 'timing', title: 'Curseur', hint: "Touche au plus près du centre vert : jusqu'à +10" },
-  { id: 'mash', title: 'Tape-tape', hint: 'Tape le plus vite possible !' },
-  { id: 'stars', title: 'Attrape les étoiles', hint: "Touche les étoiles avant qu'elles filent" },
-  { id: 'wheel', title: 'Roue de la fortune', hint: 'Touche pour arrêter la roue' },
-];
+  'timing', 'mash', 'stars', 'wheel',
+].map((id) => ({ id, get title() { return tr('bonus.' + id + '.title'); }, get hint() { return tr('bonus.' + id + '.hint'); } }));
 
 function startBonus() {
   bonusCount++;
@@ -92,9 +89,9 @@ function drawBonus(canvas) {
     textPaint.textSize = w * 0.1; canvas.drawText(String(bonusTaps), w / 2, cy - w * 0.27, textPaint);
     canvas.drawCircle(w / 2, cy, w * 0.19 * (1 + 0.1 * bonusPulse), primaryBtnPaint);
     btnTextPaint.color = Color.WHITE; btnTextPaint.textSize = w * 0.08;
-    canvas.drawText('TAPE !', w / 2, cy - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2, btnTextPaint);
+    canvas.drawText(tr('bonus.tap_button'), w / 2, cy - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2, btnTextPaint);
     drawTimeBar(canvas, cy + w * 0.27, 1 - t / mashDuration);
-    textPaint.textSize = w * 0.045; canvas.drawText(`+${Math.min(Math.floor(bonusTaps / 4), 10)} points`, w / 2, cy + w * 0.38, textPaint);
+    textPaint.textSize = w * 0.045; canvas.drawText(tr('bonus.points', { n: Math.min(Math.floor(bonusTaps / 4), 10) }), w / 2, cy + w * 0.38, textPaint);
   } else if (bonusType.id === 'stars') {
     for (const st of stars) {
       const f = st[2] / st[3];
@@ -132,8 +129,8 @@ function drawBonus(canvas) {
     canvas.drawPath(tmpPath, cursorPaint);
     cursorStroke.strokeWidth = w * 0.006; canvas.drawPath(tmpPath, cursorStroke);
   }
-  const msg = bonusResult !== 0 && bonusGain > 0 ? 'Bravo ! +' + bonusGain
-    : bonusResult !== 0 ? 'Raté… on continue !' : bonusT < bonusIntro ? 'Prêt ?' : '';
+  const msg = bonusResult !== 0 && bonusGain > 0 ? tr('bonus.win', { n: bonusGain })
+    : bonusResult !== 0 ? tr('bonus.miss') : bonusT < bonusIntro ? tr('bonus.ready') : '';
   if (msg) {
     textPaint.textSize = w * 0.085;
     canvas.drawText(msg, w / 2, bonusType.id === 'stars' ? h * 0.55 : ub() - w * 0.08, textPaint);

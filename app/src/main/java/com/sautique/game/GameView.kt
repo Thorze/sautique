@@ -72,6 +72,10 @@ class GameView(context: Context) : View(context) {
     // --- Etat ---
     internal var state = State.READY
     internal var score = 0
+    init {
+        I18n.init(context)
+    }
+
     internal val profile = LocalScores(context)
     internal val missions = DailyMissions(profile) { java.time.LocalDate.now().toString() }
 
@@ -126,7 +130,7 @@ class GameView(context: Context) : View(context) {
     internal var syncing = false
     internal var pseudoDialogShown = false
     internal val buttons = ArrayList<Button>()
-    internal val dateFormat = java.text.SimpleDateFormat("dd/MM/yy", java.util.Locale.FRANCE)
+    internal val dateFormat get() = java.text.SimpleDateFormat(tr("format.date"), java.util.Locale.ROOT)
 
     internal val platforms = ArrayList<Platform>()
     internal val drawOrder = ArrayList<Platform>()
@@ -568,9 +572,9 @@ class GameView(context: Context) : View(context) {
         if (r.coins <= 0) return
         profile.coins += r.coins
         for (m in r.completed) {
-            banners += Banner((if (m.challenge) "🏅 Défi du jour réussi ! +" else "✅ Mission réussie ! +") + "${m.reward} 🪙", 3f)
+            banners += Banner(tr(if (m.challenge) "banner.challenge_done" else "banner.mission_done", "n" to m.reward), 3f)
         }
-        if (r.allDoneBonus) banners += Banner("🎉 Missions du jour terminées : +${DailyMissions.ALL_DONE_REWARD} 🪙", 3.2f)
+        if (r.allDoneBonus) banners += Banner(tr("banner.missions_all", "n" to DailyMissions.ALL_DONE_REWARD), 3.2f)
         sounds.play(Sounds.Sfx.UNLOCK)
     }
 
@@ -595,8 +599,8 @@ class GameView(context: Context) : View(context) {
         val x = sx(p.cx, p.cz) + camX
         val y = sy(p.cx, 0.6f, p.cz) + camY
         spawnSparkles(x, y, Color.parseColor("#FF4D8D"), 18)
-        popups.add(Popup("+1 vie ❤️", x, y - k * 0.4f, 1.1f))
-        banners += Banner("❤️ Vie bonus ! Si tu tombes, tu reviens", 2.6f)
+        popups.add(Popup(tr("popup.life"), x, y - k * 0.4f, 1.1f))
+        banners += Banner(tr("banner.life"), 2.6f)
         sounds.play(Sounds.Sfx.UNLOCK)
     }
 
@@ -611,7 +615,7 @@ class GameView(context: Context) : View(context) {
         reviveT = 0f
         perfectStreak = 0
         gameOverReason = null
-        banners += Banner(if (lives > 0) "😇 Sauvé ! Il te reste $lives ❤️" else "😇 Sauvé ! Plus de vie en réserve", 2.6f)
+        banners += Banner(if (lives > 0) tr("banner.saved", "n" to lives) else tr("banner.saved_last"), 2.6f)
         sounds.play(Sounds.Sfx.REVIVE)
         state = State.REVIVE
     }
@@ -724,7 +728,7 @@ class GameView(context: Context) : View(context) {
         p.crumbleT = 0f
         if (!crumbleHintShown) {
             crumbleHintShown = true
-            popups.add(Popup("Elle s'effrite, vite !", sx(px, pz) + camX, sy(px, playerHeight * 3.4f, pz) + camY, 1.4f))
+            popups.add(Popup(tr("popup.crumble"), sx(px, pz) + camX, sy(px, playerHeight * 3.4f, pz) + camY, 1.4f))
         }
     }
 
@@ -798,7 +802,7 @@ class GameView(context: Context) : View(context) {
                         shake(0.08f)
                         val standing = (state == State.READY || state == State.CHARGING) && p === current
                         if (standing) {
-                            gameOverReason = "La plateforme s'est effondrée !"
+                            gameOverReason = tr("reason.collapsed")
                             startFall()
                         }
                     }
@@ -881,7 +885,7 @@ class GameView(context: Context) : View(context) {
                 score += points
                 popups.add(
                     Popup(
-                        if (perfect) "Parfait ! +$points" else "+$points",
+                        if (perfect) tr("popup.perfect", "n" to points) else "+$points",
                         sx(px, pz) + camX, sy(px, playerHeight * 2.2f, pz) + camY, 0.8f
                     )
                 )
@@ -912,7 +916,7 @@ class GameView(context: Context) : View(context) {
                     pendingBounce = true
                     bounceDelay = 0.3f
                     current.bounce = 1f
-                    popups.add(Popup("Boing !", sx(px, pz) + camX, sy(px, playerHeight * 3.4f, pz) + camY, 0.9f))
+                    popups.add(Popup(tr("popup.boing"), sx(px, pz) + camX, sy(px, playerHeight * 3.4f, pz) + camY, 0.9f))
                     missionEvent(MissionType.TRAMPOLINES)
                 }
                 if (jumps % bonusEvery == 0) startBonus() else state = State.READY
@@ -987,7 +991,7 @@ class GameView(context: Context) : View(context) {
         canvas.drawText(score.toString(), w / 2f, insetTop + h * 0.17f, scorePaint)
         textPaint.textSize = w * 0.045f
         val livesText = if (lives > 0) "   " + "❤️".repeat(lives) else ""
-        canvas.drawText("Record : $best   🪙 ${profile.coins}$livesText", w / 2f, insetTop + h * 0.17f + w * 0.08f, textPaint)
+        canvas.drawText(tr("common.record", "n" to best) + "   🪙 ${profile.coins}$livesText", w / 2f, insetTop + h * 0.17f + w * 0.08f, textPaint)
         drawBanners(canvas)
 
         buttons.clear()
@@ -1001,30 +1005,30 @@ class GameView(context: Context) : View(context) {
 
         if (state == State.READY && score == 0) {
             textPaint.textSize = w * 0.05f
-            canvas.drawText("Maintiens appuyé pour sauter", w / 2f, ub - w * 0.27f, textPaint)
+            canvas.drawText(tr("hud.hint1"), w / 2f, ub - w * 0.27f, textPaint)
             textPaint.textSize = w * 0.04f
-            canvas.drawText("plus longtemps = plus loin", w / 2f, ub - w * 0.2f, textPaint)
+            canvas.drawText(tr("hud.hint2"), w / 2f, ub - w * 0.2f, textPaint)
 
             // Raccourcis en haut : pseudo à gauche, classement à droite
             val ch = w * 0.085f
             val top = insetTop + w * 0.04f
-            drawButton(canvas, RectF(w * 0.03f, top, w * 0.33f, top + ch), "✎ " + (profile.pseudo ?: "Pseudo"), chipPaint, w * 0.036f) {
+            drawButton(canvas, RectF(w * 0.03f, top, w * 0.33f, top + ch), "✎ " + (profile.pseudo ?: tr("menu.pseudo")), chipPaint, w * 0.036f) {
                 askPseudo(first = false)
             }
-            drawButton(canvas, RectF(w * 0.67f, top, w * 0.97f, top + ch), "🏆 Classement", chipPaint, w * 0.036f) {
+            drawButton(canvas, RectF(w * 0.67f, top, w * 0.97f, top + ch), tr("menu.board"), chipPaint, w * 0.036f) {
                 openBoard(0)
             }
             val ty = top + ch + w * 0.025f
             val doneCount = missions.list().indices.count { missions.isDone(it) }
-            drawButton(canvas, RectF(w * 0.67f, ty, w * 0.97f, ty + ch), "📋 Missions $doneCount/4", chipPaint, w * 0.034f) {
+            drawButton(canvas, RectF(w * 0.67f, ty, w * 0.97f, ty + ch), tr("menu.missions") + " $doneCount/4", chipPaint, w * 0.034f) {
                 openMissions()
             }
             drawButton(canvas, RectF(w * 0.03f, ty, w * 0.33f, ty + ch),
-                (if (sounds.soundVolume > 0f || sounds.musicVolume > 0f) "🔊" else "🔇") + " Son", chipPaint, w * 0.036f) {
+                (if (sounds.soundVolume > 0f || sounds.musicVolume > 0f) "🔊" else "🔇") + " " + tr("menu.sound"), chipPaint, w * 0.036f) {
                 openSettings()
             }
             val vy0 = ub - w * 0.11f
-            drawButton(canvas, RectF(w * 0.6f, vy0, w * 0.97f, vy0 + w * 0.075f), "🎨 Personnage", chipPaint, w * 0.034f) {
+            drawButton(canvas, RectF(w * 0.6f, vy0, w * 0.97f, vy0 + w * 0.075f), tr("menu.character"), chipPaint, w * 0.034f) {
                 openCustomize()
             }
             // Version (toucher = vérifier les mises à jour)

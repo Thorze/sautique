@@ -69,12 +69,12 @@ function drawPlayer(canvas) {
     canvas.drawText('!', ox, headY - (bangPaint.descent() + bangPaint.ascent()) / 2, bangPaint);
   }
   if (falling) {
-    if (fallAnim === 'panic') drawBubble(canvas, ox, headY, 'Aaaah !');
-    else if (fallAnim === 'spin') { if (fallT < 0.8) drawBubble(canvas, ox, headY - k * 0.3, 'Wouaah !'); }
+    if (fallAnim === 'panic') drawBubble(canvas, ox, headY, tr('fall.panic'));
+    else if (fallAnim === 'spin') { if (fallT < 0.8) drawBubble(canvas, ox, headY - k * 0.3, tr('fall.spin')); }
     else if (fallAnim === 'cartoon') {
       if (fallT >= 0.2 && fallT <= 0.8) drawBubble(canvas, ox, headY, '…');
-      else if (fallT > 0.8 && fallT <= 1.5) drawBubble(canvas, ox, headY, 'Oups !');
-    } else if (fallAnim === 'parachute' && fallT >= 1.9 && fallT <= 2.6) drawBubble(canvas, ox, headY, 'Crac !');
+      else if (fallT > 0.8 && fallT <= 1.5) drawBubble(canvas, ox, headY, tr('fall.oops'));
+    } else if (fallAnim === 'parachute' && fallT >= 1.9 && fallT <= 2.6) drawBubble(canvas, ox, headY, tr('fall.crack'));
   }
 }
 

@@ -43,8 +43,8 @@ object Updater {
                 if (activity.isFinishing || activity.isDestroyed) return@post
                 when {
                     release != null && release.code > BuildConfig.VERSION_CODE -> showUpdateDialog(activity, release)
-                    manual && release == null -> toast(activity, "Impossible de vérifier les mises à jour")
-                    manual -> toast(activity, "Sautique est à jour (v${BuildConfig.VERSION_NAME})")
+                    manual && release == null -> toast(activity, tr("update.check_failed"))
+                    manual -> toast(activity, tr("update.up_to_date", "v" to BuildConfig.VERSION_NAME))
                 }
             }
         }
@@ -88,13 +88,13 @@ object Updater {
 
     private fun showUpdateDialog(activity: Activity, r: Release) {
         val notes = r.notes.trim().let { if (it.length > 600) it.take(600) + "…" else it }
-        val msg = "Version ${r.tag.removePrefix("v")} disponible (tu as la ${BuildConfig.VERSION_NAME})." +
+        val msg = tr("update.available_msg", "v" to r.tag.removePrefix("v"), "mine" to BuildConfig.VERSION_NAME) +
             if (notes.isNotEmpty()) "\n\n$notes" else ""
         AlertDialog.Builder(activity)
-            .setTitle("Mise à jour disponible")
+            .setTitle(tr("update.available"))
             .setMessage(msg)
-            .setPositiveButton("Mettre à jour") { _, _ -> startInstall(activity, r) }
-            .setNegativeButton("Plus tard", null)
+            .setPositiveButton(tr("update.install")) { _, _ -> startInstall(activity, r) }
+            .setNegativeButton(tr("update.later"), null)
             .show()
     }
 
@@ -108,21 +108,21 @@ object Updater {
         }
         pending = r
         AlertDialog.Builder(activity)
-            .setTitle("Autorisation nécessaire")
-            .setMessage("Pour installer la mise à jour, autorise Sautique à installer des applications, puis reviens dans le jeu.")
-            .setPositiveButton("Ouvrir les réglages") { _, _ ->
+            .setTitle(tr("update.permission"))
+            .setMessage(tr("update.permission_msg"))
+            .setPositiveButton(tr("update.open_settings")) { _, _ ->
                 activity.startActivity(
                     Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + activity.packageName))
                 )
             }
-            .setNegativeButton("Annuler") { _, _ -> pending = null }
+            .setNegativeButton(tr("common.cancel")) { _, _ -> pending = null }
             .show()
     }
 
     private fun download(activity: Activity, r: Release) {
         val pad = (20 * activity.resources.displayMetrics.density).toInt()
         val bar = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
-        val label = TextView(activity).apply { text = "Téléchargement…" }
+        val label = TextView(activity).apply { text = tr("update.downloading") }
         val box = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(pad, pad, pad, 0)
@@ -130,7 +130,7 @@ object Updater {
             addView(bar)
         }
         val dialog = AlertDialog.Builder(activity)
-            .setTitle("Mise à jour ${r.tag}")
+            .setTitle(tr("update.title", "v" to r.tag))
             .setView(box)
             .setCancelable(false)
             .show()
@@ -165,7 +165,7 @@ object Updater {
                                         val pct = (done * 100 / total).toInt()
                                         if (pct != lastPct) {
                                             lastPct = pct
-                                            main.post { bar.progress = pct; label.text = "Téléchargement… $pct %" }
+                                            main.post { bar.progress = pct; label.text = tr("update.downloading") + " $pct %" }
                                         }
                                     }
                                 }
@@ -187,7 +187,7 @@ object Updater {
                 if (sessionId >= 0) try { installer.abandonSession(sessionId) } catch (_: Exception) {}
                 main.post {
                     dialog.dismiss()
-                    toast(appContext, "Échec de la mise à jour : ${e.message ?: "erreur réseau"}")
+                    toast(appContext, tr("update.failed", "msg" to (e.message ?: tr("update.network_error"))))
                 }
             }
         }

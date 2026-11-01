@@ -110,6 +110,11 @@ class LocalScores(context: Context) : KeyValueStore {
         get() = prefs.getBoolean("vibration_on", true)
         set(value) = prefs.edit().putBoolean("vibration_on", value).apply()
 
+    /** Langue choisie : « auto » (celle du téléphone) ou un code de [I18n.languages]. */
+    var language: String
+        get() = prefs.getString("language", I18n.AUTO) ?: I18n.AUTO
+        set(value) = prefs.edit().putString("language", value).apply()
+
     var fakeAdsOn: Boolean
         get() = prefs.getBoolean("fake_ads_on", true)
         set(value) = prefs.edit().putBoolean("fake_ads_on", value).apply()

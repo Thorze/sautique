@@ -4,7 +4,7 @@ name: Site web
 on:
   push:
     branches: ["claude/sleepy-euler-aowuk7"]
-    paths: ["web/**", ".github/workflows/pages.yml"]
+    paths: ["web/**", "langues/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -24,6 +24,9 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Ajoute les fichiers de langue
+        run: mkdir -p web/lang && cp langues/*.json web/lang/
 
       - name: Contrôle de syntaxe
         run: for f in web/js/*.js; do node --check "$f"; done

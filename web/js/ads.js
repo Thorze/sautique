@@ -3,46 +3,24 @@
 
 const FakeAds = (() => {
   const c = (s) => Color.parseColor(s);
-  const A = (id, brand, title, lines, legal, cta, bg, text, accent, ctaColor) => ({ id, brand, title, lines, legal, cta, bg, text, accent, ctaColor });
+  // Textes traduits : clés « ad.<id>.brand », « .title », « .lines », « .legal », « .cta »…
+  const A = (id, bg, text, accent, ctaColor) => ({
+    id, bg, text, accent, ctaColor,
+    t(part, args) { return tr('ad.' + id + '.' + part, args); },
+    get brand() { return this.t('brand'); }, get title() { return this.t('title'); }, get lines() { return this.t('lines'); },
+    get legal() { return this.t('legal'); }, get cta() { return this.t('cta'); },
+  });
   return {
     EVERY: 3,
     CLOSE_DELAY: 3,
     all: [
-      A('assurance', '🛡️ Assurances Chute & Vertige',
-        'Vous avez raté la marche ?\nNe tombez plus seul dans le néant.',
-        ['✔ Arêtes écornées remboursées jusqu\'à 100\u00A0%', '✔ Rapatriement depuis le vide infini', '✔ Option « Airbag » pour boules et cylindres'],
-        'Franchise : 3 sauts. Hors plateformes qui s\'effritent, trampolines et gravité. Offre soumise à l\'avis de nos experts en maladresse.',
-        'Obtenir un devis en 3 clics', c('#EAF2FB'), c('#1D3557'), c('#1D4E89'), c('#1D4E89')),
-      A('cereales', '🍫 La Barre Céréalique',
-        'Le snack officiel des sauteurs du dimanche',
-        ['Marre de glisser au bord des plateformes ?', 'Prenez une Barre Céréalique !', '+400 % d\'adhérence aux angles droits', '0 % de matières grasses', '100 % carton recyclé (c\'est aussi le goût)'],
-        'Ne protège pas des chutes dans le vide sidéral. Pour votre santé, mangez au moins 5 fruits et légumes cubiques par jour.',
-        'J\'en veux une palette !', c('#FFF3C4'), c('#5A2D0C'), c('#E53950'), c('#E53950')),
-      A('immo', '🏠 Immo Vend-Que-Dalle',
-        'Studio perché grand air\n0,5 m², non chauffé',
-        ['🌅 Vue imprenable à 360° sur le vide', '🤫 Voisinage très calme (personne à 10\u00A0000\u00A0km)', '⚡ DPE : G, comme Gravité', '💰 1 200 🪙 / mois, charges non comprises'],
-        'Frais d\'agence : 3 mois de loyer et vos lunettes. Visite uniquement en sautant. Le bien peut s\'effriter sans préavis.',
-        'Déposer mon dossier', c('#F4F1EA'), c('#2B2B2B'), c('#2F6B4F'), c('#2F6B4F')),
-      A('genie', '🧠 CUBE GÉNIE 3D',
-        '99 % des joueurs échouent à ce niveau !',
-        ['Seul un vrai génie peut réussir ce saut.', 'Et toi, tu y arrives ? 🤔'],
-        'Séquence non représentative du jeu. Aucun cube n\'a été blessé (sauf celui-là).',
-        'Je suis un génie', c('#1E1E3A'), Color.WHITE, c('#FFD54F'), c('#3DBE6E')),
-      A('crypto', '📈 CubeCoin, la crypto qui saute',
-        'Devenez riche en sautant !',
-        ['« J\'ai commencé avec 3 pièces.\nAujourd\'hui j\'en ai 4. »', '— Kevin, 14 ans, cube', 'Rendement garanti* : +33 %'],
-        '*Garanti par Kevin. Les performances passées ne préjugent pas des sauts futurs. Investir comporte un risque de chute dans le vide.',
-        'Investir toutes mes pièces', c('#0F2027'), Color.WHITE, c('#3DDC97'), c('#F7931A')),
-      A('love', '💘 Sautique Love',
-        'Des plateformes célibataires près de chez vous !',
-        ['Elles sont à un seul saut de vous ❤️', 'Grandes, petites, qui bougent…', '…et des trampolines qui ont du ressort'],
-        'Certaines plateformes peuvent s\'effriter dès le premier rendez-vous. Sautique Love décline toute responsabilité en cas de chute (amoureuse ou non).',
-        'Sauter le pas', c('#FFE4EC'), c('#5B1A33'), c('#E0457B'), c('#E0457B')),
-      A('premium', '👑 Sautique GOLD ULTRA+',
-        'Marre des pubs ?\nSupprimez-les !',
-        ['Seulement 49,99 € par semaine', '(sans engagement pendant 10 ans)', 'Bonus : une pub offerte en plus !'],
-        'Ceci est une fausse pub. Les fausses pubs se coupent gratuitement dans les réglages (bouton 🔊 Son).',
-        'S\'abonner', c('#2E3A59'), Color.WHITE, c('#FFD54F'), c('#E0A800')),
+      A('assurance', c('#EAF2FB'), c('#1D3557'), c('#1D4E89'), c('#1D4E89')),
+      A('cereales', c('#FFF3C4'), c('#5A2D0C'), c('#E53950'), c('#E53950')),
+      A('immo', c('#F4F1EA'), c('#2B2B2B'), c('#2F6B4F'), c('#2F6B4F')),
+      A('genie', c('#1E1E3A'), Color.WHITE, c('#FFD54F'), c('#3DBE6E')),
+      A('crypto', c('#0F2027'), Color.WHITE, c('#3DDC97'), c('#F7931A')),
+      A('love', c('#FFE4EC'), c('#5B1A33'), c('#E0457B'), c('#E0457B')),
+      A('premium', c('#2E3A59'), Color.WHITE, c('#FFD54F'), c('#E0A800')),
     ],
   };
 })();
@@ -76,22 +54,10 @@ function updateAd(dt) { adTime += dt; if (adToastT > 0) adToastT -= dt; }
 
 function adClick(ad) {
   adClicks++;
-  switch (ad.id) {
-    case 'assurance':
-      if (adClicks < 3) { adToast(`Clic ${adClicks}/3… encore un petit effort`); adMsg = null; }
-      else adMsg = `Désolé, votre profil a été jugé trop maladroit par nos experts.\n\n(Chutes depuis l'ouverture du jeu : ${sessionFalls})`;
-      break;
-    case 'cereales': adMsg = 'Rupture de stock : un cylindre a tout mangé.\n\nIl roule beaucoup moins bien depuis.'; break;
-    case 'immo':
-      adMsg = profile.coins < 3600
-        ? `Dossier refusé : il faut gagner 3 fois le loyer, soit 3 600 🪙.\n\nVous avez ${profile.coins} 🪙.`
-        : 'Dossier refusé : le propriétaire préfère les locataires avec moins d\'angles.';
-      break;
-    case 'genie': adMsg = 'Bonne nouvelle : tu as déjà le jeu, c\'est celui-ci !\n\nMauvaise nouvelle : ce niveau n\'existe pas.'; break;
-    case 'crypto': adMsg = 'Transaction validée !\n\nVous avez gagné 0 🪙… et perdu 0 🪙.\nLe marché est stable.'; break;
-    case 'love': adMsg = 'Oups… elle s\'est désagrégée en vous voyant arriver. 💔'; break;
-    default: adMsg = 'Bonne nouvelle : c\'est gratuit !\n\nTu peux couper les fausses pubs dans les réglages (bouton 🔊 Son).';
-  }
+  if (ad.id === 'assurance') {
+    if (adClicks < 3) { adToast(ad.t('click', { n: adClicks })); adMsg = null; } else adMsg = ad.t('answer', { n: sessionFalls });
+  } else if (ad.id === 'immo') adMsg = profile.coins < 3600 ? ad.t('answer', { n: profile.coins }) : ad.t('answer_rich');
+  else adMsg = ad.t('answer');
 }
 
 function wrapText(text, paint, maxW) {
@@ -116,7 +82,7 @@ function drawAd(canvas) {
   canvas.drawRect(0, 0, w, h, adPaint);
 
   adText.textAlign = Align.LEFT; adText.textSize = w * 0.03; adText.color = ad.text; adText.alpha = 140;
-  canvas.drawText('PUBLICITÉ', w * 0.05, top + w * 0.08, adText);
+  canvas.drawText(tr('ad.label'), w * 0.05, top + w * 0.08, adText);
   adText.alpha = 255; adText.textAlign = Align.CENTER;
 
   adBold.color = ad.accent; adBold.textSize = w * 0.05;
@@ -135,7 +101,7 @@ function drawAd(canvas) {
   // Titre et arguments, centrés entre l'illustration et les mentions légales
   adBold.textSize = w * 0.058; adText.textSize = w * 0.04;
   const titleLines = wrapText(ad.title, adBold, w * 0.88);
-  const bodyLines = ad.lines.flatMap((it) => wrapText(it, adText, w * 0.88));
+  const bodyLines = wrapText(ad.lines, adText, w * 0.88);
   const blockH = titleLines.length * w * 0.07 + w * 0.02 + bodyLines.length * w * 0.056;
   const free = legalTop - w * 0.08 - (artTop + artH);
   let y = artTop + artH + w * 0.06 + Math.max(0, (free - blockH) / 2);
@@ -175,7 +141,7 @@ function drawAd(canvas) {
       buttons.push({
         rect: new RectF(cx - cr * 1.8, ccy - cr * 1.8, cx + cr * 1.8, ccy + cr * 1.8),
         action: () => {
-          if (adDodge) { adDodge = false; adCloseLeft = !adCloseLeft; adToast('Raté ! 😏'); } else closeAd();
+          if (adDodge) { adDodge = false; adCloseLeft = !adCloseLeft; adToast(tr('ad.dodge')); } else closeAd();
         },
       });
     }
@@ -219,6 +185,14 @@ function adCube(canvas, cx, by, s, color, eyes = true) {
   }
 }
 
+/** Texte dans une illustration, réduit pour tenir dans [maxW]. */
+function artText(canvas, text, x, y, size, maxW) {
+  adBold.textSize = size;
+  const tw = adBold.measureText(text);
+  if (tw > maxW) adBold.textSize = size * maxW / tw;
+  canvas.drawText(text, x, y, adBold);
+}
+
 function adEmoji(canvas, text, x, y, size) {
   adText.textAlign = Align.CENTER; adText.textSize = size; adText.color = 0xFF000000;
   canvas.drawText(text, x, y + size * 0.35, adText);
@@ -248,8 +222,7 @@ function drawAdArt(canvas, ad, cx, cy, s) {
       }
       adPaint.color = ad.accent;
       canvas.drawCircle(cx + s * 0.6, cy - s * 0.28, s * 0.13, adPaint);
-      adBold.color = Color.WHITE; adBold.textSize = s * 0.06;
-      canvas.drawText('AGRÉÉ', cx + s * 0.6, cy - s * 0.26, adBold);
+      adBold.color = Color.WHITE; artText(canvas, ad.t('art1'), cx + s * 0.6, cy - s * 0.26, s * 0.06, s * 0.24);
       break;
     }
     case 'cereales': {
@@ -267,10 +240,8 @@ function drawAdArt(canvas, ad, cx, cy, s) {
       adPaint.color = PC('#E53950'); canvas.drawRoundRect(rect, s * 0.04, s * 0.04, adPaint);
       rect.set(cx - s * 0.52, cy - s * 0.11, cx + s * 0.08, cy + s * 0.11);
       adPaint.color = PC('#FFC93C'); canvas.drawRoundRect(rect, s * 0.04, s * 0.04, adPaint);
-      adBold.color = PC('#E53950'); adBold.textSize = s * 0.085;
-      canvas.drawText('BARRE', cx - s * 0.22, cy - s * 0.01, adBold);
-      adBold.textSize = s * 0.062;
-      canvas.drawText('CÉRÉALIQUE', cx - s * 0.22, cy + s * 0.075, adBold);
+      adBold.color = PC('#E53950'); artText(canvas, ad.t('art1'), cx - s * 0.22, cy - s * 0.01, s * 0.085, s * 0.48);
+      artText(canvas, ad.t('art2'), cx - s * 0.22, cy + s * 0.075, s * 0.062, s * 0.48);
       canvas.restore();
       for (let i = 0; i < 6; i++) {
         adPaint.color = i % 2 === 0 ? PC('#C68642') : PC('#8D5524');
@@ -309,8 +280,7 @@ function drawAdArt(canvas, ad, cx, cy, s) {
       canvas.drawLine(cx, top + s * 0.1, cx, top - s * 0.18, adStroke);
       rect.set(cx - s * 0.17, top - s * 0.36, cx + s * 0.17, top - s * 0.18);
       adPaint.color = ad.accent; canvas.drawRoundRect(rect, s * 0.02, s * 0.02, adPaint);
-      adBold.color = Color.WHITE; adBold.textSize = s * 0.07;
-      canvas.drawText('À LOUER', cx, top - s * 0.245, adBold);
+      adBold.color = Color.WHITE; artText(canvas, ad.t('art1'), cx, top - s * 0.245, s * 0.07, s * 0.3);
       adPaint.color = PC('#A8977A');
       for (let i = 0; i < 3; i++) {
         const f = (t * 0.7 + i * 0.33) % 1;
@@ -333,8 +303,7 @@ function drawAdArt(canvas, ad, cx, cy, s) {
         const d = s * 0.14;
         canvas.drawLine(cx - d, cy - s * 0.2 - d, cx + d, cy - s * 0.2 + d, adStroke);
         canvas.drawLine(cx + d, cy - s * 0.2 - d, cx - d, cy - s * 0.2 + d, adStroke);
-        adBold.color = PC('#FFD54F'); adBold.textSize = s * 0.11;
-        canvas.drawText('FACILE ?! 😡', cx, cy - s * 0.4, adBold);
+        adBold.color = PC('#FFD54F'); artText(canvas, ad.t('art1'), cx, cy - s * 0.4, s * 0.11, s * 1.2);
       }
       adStroke.color = PC('#E53950'); adStroke.strokeWidth = s * 0.02;
       const ax = cx + gap / 2, ay = by - s * 0.32 - Math.abs(Math.sin(t * 5)) * s * 0.04;
@@ -401,8 +370,7 @@ function drawAdArt(canvas, ad, cx, cy, s) {
         adPaint.color = Color.argb(Math.round(255 * (1 - f)), 255, 236, 140);
         drawStar(canvas, cx + Math.cos(a) * s * 0.6, cy - s * 0.15 + Math.sin(a) * s * 0.3, s * 0.05 * (0.5 + f), adPaint);
       }
-      adBold.color = gold; adBold.textSize = s * 0.1;
-      canvas.drawText('PREMIUM', cx, b + s * 0.22, adBold);
+      adBold.color = gold; artText(canvas, ad.t('art1'), cx, b + s * 0.22, s * 0.1, s * 0.9);
     }
   }
 }

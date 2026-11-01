@@ -11,18 +11,19 @@ interface KeyValueStore {
 }
 
 /** Ce qui fait avancer les missions. [max] = on garde la meilleure valeur au lieu d'additionner. */
-enum class MissionType(val max: Boolean, private val text: String) {
-    SCORE(true, "Atteins %d points en une partie"),
-    PERFECTS(false, "Fais %d atterrissages parfaits"),
-    STREAK(true, "Enchaîne %d parfaits d'affilée"),
-    COINS(false, "Ramasse %d pièces"),
-    BONUS_WIN(false, "Réussis %d niveaux bonus"),
-    TRAMPOLINES(false, "Rebondis sur %d trampolines"),
-    GAMES(false, "Joue %d parties"),
-    JUMPS(false, "Réussis %d sauts"),
-    SCARES(false, "Atterris %d fois tout au bord");
+enum class MissionType(val max: Boolean) {
+    SCORE(true),
+    PERFECTS(false),
+    STREAK(true),
+    COINS(false),
+    BONUS_WIN(false),
+    TRAMPOLINES(false),
+    GAMES(false),
+    JUMPS(false),
+    SCARES(false);
 
-    fun describe(target: Int) = text.format(target)
+    /** Texte traduit (clé « mission.score »…, {n} = objectif). */
+    fun describe(target: Int) = I18n.tr("mission." + name.lowercase(), "n" to target)
 }
 
 class Mission(val type: MissionType, val target: Int, val reward: Int, val challenge: Boolean) {

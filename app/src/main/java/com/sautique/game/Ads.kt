@@ -12,10 +12,15 @@ import kotlin.random.Random
  * Fausses publicités parodiques, affichées de temps en temps quand on relance une partie.
  * Tout est dessiné en code (aucune image, aucun son). Désactivables dans les réglages.
  */
-internal class FakeAd(
-    val id: String, val brand: String, val title: String, val lines: List<String>, val legal: String,
-    val cta: String, val bg: Int, val text: Int, val accent: Int, val ctaColor: Int
-)
+internal class FakeAd(val id: String, val bg: Int, val text: Int, val accent: Int, val ctaColor: Int) {
+    /** Textes traduits : clés « ad.<id>.brand », « .title », « .lines », « .legal », « .cta »… */
+    fun t(part: String, vararg args: Pair<String, Any?>) = tr("ad.$id.$part", *args)
+    val brand get() = t("brand")
+    val title get() = t("title")
+    val lines get() = t("lines")
+    val legal get() = t("legal")
+    val cta get() = t("cta")
+}
 
 internal object FakeAds {
     /** Une pub toutes les [EVERY] parties relancées. */
@@ -26,87 +31,13 @@ internal object FakeAds {
     private fun c(s: String) = Color.parseColor(s)
 
     val all = listOf(
-        FakeAd(
-            "assurance", "🛡️ Assurances Chute & Vertige",
-            "Vous avez raté la marche ?\nNe tombez plus seul dans le néant.",
-            listOf(
-                "✔ Arêtes écornées remboursées jusqu'à 100\u00A0%",
-                "✔ Rapatriement depuis le vide infini",
-                "✔ Option « Airbag » pour boules et cylindres"
-            ),
-            "Franchise : 3 sauts. Hors plateformes qui s'effritent, trampolines et gravité. " +
-                "Offre soumise à l'avis de nos experts en maladresse.",
-            "Obtenir un devis en 3 clics", c("#EAF2FB"), c("#1D3557"), c("#1D4E89"), c("#1D4E89")
-        ),
-        FakeAd(
-            "cereales", "🍫 La Barre Céréalique",
-            "Le snack officiel des sauteurs du dimanche",
-            listOf(
-                "Marre de glisser au bord des plateformes ?",
-                "Prenez une Barre Céréalique !",
-                "+400 % d'adhérence aux angles droits",
-                "0 % de matières grasses",
-                "100 % carton recyclé (c'est aussi le goût)"
-            ),
-            "Ne protège pas des chutes dans le vide sidéral. Pour votre santé, mangez au moins " +
-                "5 fruits et légumes cubiques par jour.",
-            "J'en veux une palette !", c("#FFF3C4"), c("#5A2D0C"), c("#E53950"), c("#E53950")
-        ),
-        FakeAd(
-            "immo", "🏠 Immo Vend-Que-Dalle",
-            "Studio perché grand air\n0,5 m², non chauffé",
-            listOf(
-                "🌅 Vue imprenable à 360° sur le vide",
-                "🤫 Voisinage très calme (personne à 10\u00A0000\u00A0km)",
-                "⚡ DPE : G, comme Gravité",
-                "💰 1 200 🪙 / mois, charges non comprises"
-            ),
-            "Frais d'agence : 3 mois de loyer et vos lunettes. Visite uniquement en sautant. " +
-                "Le bien peut s'effriter sans préavis.",
-            "Déposer mon dossier", c("#F4F1EA"), c("#2B2B2B"), c("#2F6B4F"), c("#2F6B4F")
-        ),
-        FakeAd(
-            "genie", "🧠 CUBE GÉNIE 3D",
-            "99 % des joueurs échouent à ce niveau !",
-            listOf("Seul un vrai génie peut réussir ce saut.", "Et toi, tu y arrives ? 🤔"),
-            "Séquence non représentative du jeu. Aucun cube n'a été blessé (sauf celui-là).",
-            "Je suis un génie", c("#1E1E3A"), Color.WHITE, c("#FFD54F"), c("#3DBE6E")
-        ),
-        FakeAd(
-            "crypto", "📈 CubeCoin, la crypto qui saute",
-            "Devenez riche en sautant !",
-            listOf(
-                "« J'ai commencé avec 3 pièces.\nAujourd'hui j'en ai 4. »",
-                "— Kevin, 14 ans, cube",
-                "Rendement garanti* : +33 %"
-            ),
-            "*Garanti par Kevin. Les performances passées ne préjugent pas des sauts futurs. " +
-                "Investir comporte un risque de chute dans le vide.",
-            "Investir toutes mes pièces", c("#0F2027"), Color.WHITE, c("#3DDC97"), c("#F7931A")
-        ),
-        FakeAd(
-            "love", "💘 Sautique Love",
-            "Des plateformes célibataires près de chez vous !",
-            listOf(
-                "Elles sont à un seul saut de vous ❤️",
-                "Grandes, petites, qui bougent…",
-                "…et des trampolines qui ont du ressort"
-            ),
-            "Certaines plateformes peuvent s'effriter dès le premier rendez-vous. " +
-                "Sautique Love décline toute responsabilité en cas de chute (amoureuse ou non).",
-            "Sauter le pas", c("#FFE4EC"), c("#5B1A33"), c("#E0457B"), c("#E0457B")
-        ),
-        FakeAd(
-            "premium", "👑 Sautique GOLD ULTRA+",
-            "Marre des pubs ?\nSupprimez-les !",
-            listOf(
-                "Seulement 49,99 € par semaine",
-                "(sans engagement pendant 10 ans)",
-                "Bonus : une pub offerte en plus !"
-            ),
-            "Ceci est une fausse pub. Les fausses pubs se coupent gratuitement dans les réglages (bouton 🔊 Son).",
-            "S'abonner", c("#2E3A59"), Color.WHITE, c("#FFD54F"), c("#E0A800")
-        )
+        FakeAd("assurance", c("#EAF2FB"), c("#1D3557"), c("#1D4E89"), c("#1D4E89")),
+        FakeAd("cereales", c("#FFF3C4"), c("#5A2D0C"), c("#E53950"), c("#E53950")),
+        FakeAd("immo", c("#F4F1EA"), c("#2B2B2B"), c("#2F6B4F"), c("#2F6B4F")),
+        FakeAd("genie", c("#1E1E3A"), Color.WHITE, c("#FFD54F"), c("#3DBE6E")),
+        FakeAd("crypto", c("#0F2027"), Color.WHITE, c("#3DDC97"), c("#F7931A")),
+        FakeAd("love", c("#FFE4EC"), c("#5B1A33"), c("#E0457B"), c("#E0457B")),
+        FakeAd("premium", c("#2E3A59"), Color.WHITE, c("#FFD54F"), c("#E0A800"))
     )
 }
 
@@ -146,18 +77,11 @@ private fun GameView.adClick(ad: FakeAd) {
     adClicks++
     adMsg = when (ad.id) {
         "assurance" -> if (adClicks < 3) {
-            adToast("Clic $adClicks/3… encore un petit effort")
+            adToast(ad.t("click", "n" to adClicks))
             null
-        } else "Désolé, votre profil a été jugé trop maladroit par nos experts.\n\n" +
-            "(Chutes depuis l'ouverture du jeu : $sessionFalls)"
-        "cereales" -> "Rupture de stock : un cylindre a tout mangé.\n\nIl roule beaucoup moins bien depuis."
-        "immo" -> if (profile.coins < 3600)
-            "Dossier refusé : il faut gagner 3 fois le loyer, soit 3 600 🪙.\n\nVous avez ${profile.coins} 🪙."
-        else "Dossier refusé : le propriétaire préfère les locataires avec moins d'angles."
-        "genie" -> "Bonne nouvelle : tu as déjà le jeu, c'est celui-ci !\n\nMauvaise nouvelle : ce niveau n'existe pas."
-        "crypto" -> "Transaction validée !\n\nVous avez gagné 0 🪙… et perdu 0 🪙.\nLe marché est stable."
-        "love" -> "Oups… elle s'est désagrégée en vous voyant arriver. 💔"
-        else -> "Bonne nouvelle : c'est gratuit !\n\nTu peux couper les fausses pubs dans les réglages (bouton 🔊 Son)."
+        } else ad.t("answer", "n" to sessionFalls)
+        "immo" -> if (profile.coins < 3600) ad.t("answer", "n" to profile.coins) else ad.t("answer_rich")
+        else -> ad.t("answer")
     }
 }
 
@@ -191,7 +115,7 @@ internal fun GameView.drawAd(canvas: Canvas) {
     adText.textSize = w * 0.03f
     adText.color = ad.text
     adText.alpha = 140
-    canvas.drawText("PUBLICITÉ", w * 0.05f, top + w * 0.08f, adText)
+    canvas.drawText(tr("ad.label"), w * 0.05f, top + w * 0.08f, adText)
     adText.alpha = 255
     adText.textAlign = Paint.Align.CENTER
 
@@ -218,7 +142,7 @@ internal fun GameView.drawAd(canvas: Canvas) {
     adBold.textSize = w * 0.058f
     adText.textSize = w * 0.04f
     val titleLines = wrapText(ad.title, adBold, w * 0.88f)
-    val bodyLines = ad.lines.flatMap { wrapText(it, adText, w * 0.88f) }
+    val bodyLines = wrapText(ad.lines, adText, w * 0.88f)
     val blockH = titleLines.size * w * 0.07f + w * 0.02f + bodyLines.size * w * 0.056f
     val free = legalTop - w * 0.08f - (artTop + artH)
     var y = artTop + artH + w * 0.06f + ((free - blockH) / 2f).coerceAtLeast(0f)
@@ -275,7 +199,7 @@ internal fun GameView.drawAd(canvas: Canvas) {
             if (adDodge) {
                 adDodge = false
                 adCloseLeft = !adCloseLeft
-                adToast("Raté ! 😏")
+                adToast(tr("ad.dodge"))
             } else closeAd()
         })
     }
@@ -334,6 +258,14 @@ private fun GameView.adCube(canvas: Canvas, cx: Float, by: Float, s: Float, colo
     }
 }
 
+/** Texte dans une illustration, réduit pour tenir dans [maxW]. */
+private fun GameView.artText(canvas: Canvas, text: String, x: Float, y: Float, size: Float, maxW: Float) {
+    adBold.textSize = size
+    val tw = adBold.measureText(text)
+    if (tw > maxW) adBold.textSize = size * maxW / tw
+    canvas.drawText(text, x, y, adBold)
+}
+
 private fun GameView.adEmoji(canvas: Canvas, text: String, x: Float, y: Float, size: Float) {
     adText.textAlign = Paint.Align.CENTER
     adText.textSize = size
@@ -376,8 +308,7 @@ private fun GameView.drawAdArt(canvas: Canvas, ad: FakeAd, cx: Float, cy: Float,
             adPaint.color = ad.accent
             canvas.drawCircle(cx + s * 0.6f, cy - s * 0.28f, s * 0.13f, adPaint)
             adBold.color = Color.WHITE
-            adBold.textSize = s * 0.06f
-            canvas.drawText("AGRÉÉ", cx + s * 0.6f, cy - s * 0.26f, adBold)
+            artText(canvas, ad.t("art1"), cx + s * 0.6f, cy - s * 0.26f, s * 0.06f, s * 0.24f)
         }
         "cereales" -> {
             // Barre céréalique dans son emballage, penchée, avec des miettes
@@ -398,10 +329,8 @@ private fun GameView.drawAdArt(canvas: Canvas, ad: FakeAd, cx: Float, cy: Float,
             adPaint.color = Color.parseColor("#FFC93C")
             canvas.drawRoundRect(rect, s * 0.04f, s * 0.04f, adPaint)
             adBold.color = Color.parseColor("#E53950")
-            adBold.textSize = s * 0.085f
-            canvas.drawText("BARRE", cx - s * 0.22f, cy - s * 0.01f, adBold)
-            adBold.textSize = s * 0.062f
-            canvas.drawText("CÉRÉALIQUE", cx - s * 0.22f, cy + s * 0.075f, adBold)
+            artText(canvas, ad.t("art1"), cx - s * 0.22f, cy - s * 0.01f, s * 0.085f, s * 0.48f)
+            artText(canvas, ad.t("art2"), cx - s * 0.22f, cy + s * 0.075f, s * 0.062f, s * 0.48f)
             canvas.restore()
             // Miettes
             for (i in 0 until 6) {
@@ -459,8 +388,7 @@ private fun GameView.drawAdArt(canvas: Canvas, ad: FakeAd, cx: Float, cy: Float,
             adPaint.color = ad.accent
             canvas.drawRoundRect(rect, s * 0.02f, s * 0.02f, adPaint)
             adBold.color = Color.WHITE
-            adBold.textSize = s * 0.07f
-            canvas.drawText("À LOUER", cx, top - s * 0.245f, adBold)
+            artText(canvas, ad.t("art1"), cx, top - s * 0.245f, s * 0.07f, s * 0.3f)
             // Débris qui tombent
             adPaint.color = Color.parseColor("#A8977A")
             for (i in 0 until 3) {
@@ -494,8 +422,7 @@ private fun GameView.drawAdArt(canvas: Canvas, ad: FakeAd, cx: Float, cy: Float,
                 canvas.drawLine(cx - d, cy - s * 0.2f - d, cx + d, cy - s * 0.2f + d, adStroke)
                 canvas.drawLine(cx + d, cy - s * 0.2f - d, cx - d, cy - s * 0.2f + d, adStroke)
                 adBold.color = Color.parseColor("#FFD54F")
-                adBold.textSize = s * 0.11f
-                canvas.drawText("FACILE ?! 😡", cx, cy - s * 0.4f, adBold)
+                artText(canvas, ad.t("art1"), cx, cy - s * 0.4f, s * 0.11f, s * 1.2f)
             }
             // Flèche rouge qui pointe le saut « évident »
             adStroke.color = Color.parseColor("#E53950")
@@ -600,8 +527,7 @@ private fun GameView.drawAdArt(canvas: Canvas, ad: FakeAd, cx: Float, cy: Float,
                 drawStar(canvas, cx + kotlin.math.cos(a) * s * 0.6f, cy - s * 0.15f + sin(a) * s * 0.3f, s * 0.05f * (0.5f + f), adPaint)
             }
             adBold.color = gold
-            adBold.textSize = s * 0.1f
-            canvas.drawText("PREMIUM", cx, b + s * 0.22f, adBold)
+            artText(canvas, ad.t("art1"), cx, b + s * 0.22f, s * 0.1f, s * 0.9f)
         }
     }
 }

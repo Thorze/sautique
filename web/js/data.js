@@ -4,20 +4,22 @@
 
 // ---------- Skins ----------
 const Slot = {
-  CHARACTER: { key: 'character', title: 'Persos' },
-  SHAPE: { key: 'shape', title: 'Forme' },
-  COLOR: { key: 'color', title: 'Couleur' },
-  GLASSES: { key: 'glasses', title: 'Lunettes' },
-  HAT: { key: 'hat', title: 'Chapeau' },
-  SHOES: { key: 'shoes', title: 'Chaussures' },
-  BACK: { key: 'back', title: 'Dos' },
-  TRAIL: { key: 'trail', title: 'Traînée' },
+  CHARACTER: { key: 'character', get title() { return tr('slot.character'); } },
+  SHAPE: { key: 'shape', get title() { return tr('slot.shape'); } },
+  COLOR: { key: 'color', get title() { return tr('slot.color'); } },
+  GLASSES: { key: 'glasses', get title() { return tr('slot.glasses'); } },
+  HAT: { key: 'hat', get title() { return tr('slot.hat'); } },
+  SHOES: { key: 'shoes', get title() { return tr('slot.shoes'); } },
+  BACK: { key: 'back', get title() { return tr('slot.back'); } },
+  TRAIL: { key: 'trail', get title() { return tr('slot.trail'); } },
 };
 const SLOTS = [Slot.CHARACTER, Slot.SHAPE, Slot.COLOR, Slot.GLASSES, Slot.HAT, Slot.SHOES, Slot.BACK, Slot.TRAIL];
 
 const Skins = (() => {
   const NONE = 'none', RAINBOW = 'arcenciel', GALAXY = 'galaxie', ORIGINAL = 'origine';
-  const I = (slot, id, label, cost, color = 0, price = 0) => ({ slot, id, label, cost, color, price, isShop: price > 0 });
+  const I = (slot, id, _label, cost, color = 0, price = 0) => ({
+    slot, id, cost, color, price, isShop: price > 0, get label() { return tr('item.' + slot.key + '.' + id); },
+  });
   const items = [
     // Personnages complets (non personnalisables), achetés avec les pièces
     I(Slot.CHARACTER, NONE, 'Le mien', 0),
@@ -56,7 +58,7 @@ const Skins = (() => {
     I(Slot.TRAIL, 'bulles', 'Bulles', 550), I(Slot.TRAIL, 'notes', 'Notes', 0, 0, 250),
     I(Slot.TRAIL, 'coeurs', 'Cœurs', 0, 0, 300), I(Slot.TRAIL, 'arcenciel', 'Arc-en-ciel', 0, 0, 500),
   ];
-  const T = (id, label, color, price) => ({ id, label, color, price });
+  const T = (id, _label, color, price) => ({ id, color, price, get label() { return tr('tint.' + id); } });
   const tints = [
     T(ORIGINAL, 'Origine', 0, 0), T('rouge', 'Rouge', 0xFFE53950, 60), T('bleu', 'Bleu', 0xFF3F8EFC, 60),
     T('vert', 'Vert', 0xFF3DBE6E, 60), T('jaune', 'Jaune', 0xFFFFC93C, 80), T('rose', 'Rose', 0xFFFF6FB0, 80),
@@ -79,9 +81,9 @@ const Skins = (() => {
 // ---------- Ciel ----------
 const Theme = (() => {
   const stops = [
-    [0, 0xFFFDE2C8, 0xFFC9E4F5, 0, 'Matin'], [20, 0xFF7CC6F2, 0xFFE3F5FF, 0, 'Journée'],
-    [40, 0xFFFF8E72, 0xFFFFD6A5, 0.1, 'Coucher de soleil'], [60, 0xFF0F1C3F, 0xFF35507A, 1, 'Nuit'],
-    [80, 0xFF14203D, 0xFF2E8B74, 1, 'Aurore'], [100, 0xFF05010F, 0xFF3A1460, 1, 'Espace'],
+    [0, 0xFFFDE2C8, 0xFFC9E4F5, 0, 'morning'], [20, 0xFF7CC6F2, 0xFFE3F5FF, 0, 'day'],
+    [40, 0xFFFF8E72, 0xFFFFD6A5, 0.1, 'sunset'], [60, 0xFF0F1C3F, 0xFF35507A, 1, 'night'],
+    [80, 0xFF14203D, 0xFF2E8B74, 1, 'aurora'], [100, 0xFF05010F, 0xFF3A1460, 1, 'space'],
   ];
   const BLEND = 8;
   function lerp(a, b, t) {
@@ -167,6 +169,8 @@ const profile = {
   selectTint(slot, id) { store.set('tint_' + slot.key, id); },
   get vibrationOn() { return store.getBool('vibration_on', true); },
   set vibrationOn(v) { store.setBool('vibration_on', v); },
+  get language() { return store.get('language') || LANG_AUTO; },
+  set language(v) { store.set('language', v); },
   get fakeAdsOn() { return store.getBool('fake_ads_on', true); },
   set fakeAdsOn(v) { store.setBool('fake_ads_on', v); },
   queueRun(score, duration, jumps) {
@@ -197,15 +201,15 @@ const profile = {
 
 // ---------- Missions du jour ----------
 const MissionType = {
-  SCORE: { max: true, text: 'Atteins %d points en une partie' },
-  PERFECTS: { max: false, text: 'Fais %d atterrissages parfaits' },
-  STREAK: { max: true, text: "Enchaîne %d parfaits d'affilée" },
-  COINS: { max: false, text: 'Ramasse %d pièces' },
-  BONUS_WIN: { max: false, text: 'Réussis %d niveaux bonus' },
-  TRAMPOLINES: { max: false, text: 'Rebondis sur %d trampolines' },
-  GAMES: { max: false, text: 'Joue %d parties' },
-  JUMPS: { max: false, text: 'Réussis %d sauts' },
-  SCARES: { max: false, text: 'Atterris %d fois tout au bord' },
+  SCORE: { max: true, key: 'mission.score' },
+  PERFECTS: { max: false, key: 'mission.perfects' },
+  STREAK: { max: true, key: 'mission.streak' },
+  COINS: { max: false, key: 'mission.coins' },
+  BONUS_WIN: { max: false, key: 'mission.bonus_win' },
+  TRAMPOLINES: { max: false, key: 'mission.trampolines' },
+  GAMES: { max: false, key: 'mission.games' },
+  JUMPS: { max: false, key: 'mission.jumps' },
+  SCARES: { max: false, key: 'mission.scares' },
 };
 
 const missions = (() => {
@@ -232,7 +236,7 @@ const missions = (() => {
     });
     const [ht, hts] = hard[Math.floor(r() * hard.length)];
     list.push({ type: ht, target: hts[Math.floor(r() * hts.length)], reward: 50, challenge: true });
-    list.forEach((m) => { m.label = m.type.text.replace('%d', m.target); });
+    list.forEach((m) => { Object.defineProperty(m, 'label', { get() { return tr(m.type.key, { n: m.target }); } }); });
     return list;
   }
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };

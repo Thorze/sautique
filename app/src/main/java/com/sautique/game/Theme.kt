@@ -11,12 +11,12 @@ object Theme {
     private class Stop(val score: Int, val top: Int, val bottom: Int, val night: Float, val name: String)
 
     private val stops = listOf(
-        Stop(0, 0xFFFDE2C8.toInt(), 0xFFC9E4F5.toInt(), 0f, "Matin"),
-        Stop(20, 0xFF7CC6F2.toInt(), 0xFFE3F5FF.toInt(), 0f, "Journée"),
-        Stop(40, 0xFFFF8E72.toInt(), 0xFFFFD6A5.toInt(), 0.1f, "Coucher de soleil"),
-        Stop(60, 0xFF0F1C3F.toInt(), 0xFF35507A.toInt(), 1f, "Nuit"),
-        Stop(80, 0xFF14203D.toInt(), 0xFF2E8B74.toInt(), 1f, "Aurore"),
-        Stop(100, 0xFF05010F.toInt(), 0xFF3A1460.toInt(), 1f, "Espace")
+        Stop(0, 0xFFFDE2C8.toInt(), 0xFFC9E4F5.toInt(), 0f, "morning"),
+        Stop(20, 0xFF7CC6F2.toInt(), 0xFFE3F5FF.toInt(), 0f, "day"),
+        Stop(40, 0xFFFF8E72.toInt(), 0xFFFFD6A5.toInt(), 0.1f, "sunset"),
+        Stop(60, 0xFF0F1C3F.toInt(), 0xFF35507A.toInt(), 1f, "night"),
+        Stop(80, 0xFF14203D.toInt(), 0xFF2E8B74.toInt(), 1f, "aurora"),
+        Stop(100, 0xFF05010F.toInt(), 0xFF3A1460.toInt(), 1f, "space")
     )
 
     /** Nombre de points sur lesquels se fait la transition avant chaque palier. */

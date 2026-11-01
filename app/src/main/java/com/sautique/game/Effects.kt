@@ -154,14 +154,7 @@ internal fun GameView.drawSky(canvas: Canvas) {
     if (sky.name != skyName) {
         if (skyName.isNotEmpty() && state != State.GAME_OVER && score > 0) {
             banners += Banner(
-                when (sky.name) {
-                    "Journée" -> "☀️ Grand soleil"
-                    "Coucher de soleil" -> "🌇 Coucher de soleil"
-                    "Nuit" -> "🌙 La nuit tombe"
-                    "Aurore" -> "🌌 Aurore boréale"
-                    "Espace" -> "🚀 Dans l'espace !"
-                    else -> sky.name
-                }, 2.2f
+                tr("sky." + sky.name), 2.2f
             )
         }
         skyName = sky.name

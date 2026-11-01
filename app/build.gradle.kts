@@ -89,3 +89,6 @@ val copySounds by tasks.registering(Sync::class) {
 }
 android.sourceSets["main"].res.srcDir(generatedSounds)
 tasks.named("preBuild") { dependsOn(copySounds) }
+
+// Langues : les fichiers du dossier langues/ (fr.json, en.json…) sont intégrés tels quels.
+android.sourceSets["main"].assets.srcDir(rootProject.file("langues"))

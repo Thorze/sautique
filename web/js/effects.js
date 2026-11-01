@@ -118,8 +118,6 @@ function drawBanners(canvas) {
   }
 }
 
-const SKY_NAMES = { 'Journée': '☀️ Grand soleil', 'Coucher de soleil': '🌇 Coucher de soleil', 'Nuit': '🌙 La nuit tombe', 'Aurore': '🌌 Aurore boréale', 'Espace': "🚀 Dans l'espace !" };
-
 function drawSky(canvas) {
   const sky = Theme.sky(score);
   if (sky.top !== skyTop || sky.bottom !== skyBottom) {
@@ -127,7 +125,7 @@ function drawSky(canvas) {
     bgPaint.shader = new LinearGradient(0, 0, 0, h, sky.top, sky.bottom);
   }
   if (sky.name !== skyName) {
-    if (skyName && state !== State.GAME_OVER && score > 0) banners.push({ text: SKY_NAMES[sky.name] || sky.name, life: 2.2 });
+    if (skyName && state !== State.GAME_OVER && score > 0) banners.push({ text: tr('sky.' + sky.name), life: 2.2 });
     skyName = sky.name;
   }
   canvas.drawRect(0, 0, w, h, bgPaint);

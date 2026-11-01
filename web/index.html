@@ -21,11 +21,11 @@
 
   <div id="pseudo-dialog" role="dialog" aria-modal="true" aria-labelledby="pseudo-title">
     <form id="pseudo-form" class="card">
-      <h2 id="pseudo-title">Choisis ton pseudo</h2>
+      <h2 id="pseudo-title"></h2>
       <p id="pseudo-msg"></p>
-      <input id="pseudo-input" maxlength="16" autocomplete="nickname" autocapitalize="off" spellcheck="false" placeholder="Ton pseudo">
+      <input id="pseudo-input" maxlength="16" autocomplete="nickname" autocapitalize="off" spellcheck="false" data-i18n-placeholder="pseudo.hint">
       <div class="actions">
-        <button type="button" id="pseudo-cancel" class="secondary">Annuler</button>
+        <button type="button" id="pseudo-cancel" class="secondary" data-i18n="common.cancel">Annuler</button>
         <button type="submit">OK</button>
       </div>
     </form>
@@ -33,14 +33,15 @@
 
   <div id="error-box">
     <div class="card">
-      <h2>Oups, un problème</h2>
-      <p>Fais une capture d'écran de ce message et envoie-la pour que le bug soit corrigé.</p>
+      <h2 data-i18n="web.error_title">Oups, un problème</h2>
+      <p data-i18n="web.error_msg">Fais une capture d'écran de ce message et envoie-la pour que le bug soit corrigé.</p>
       <pre id="error-text"></pre>
-      <div class="actions"><button type="button" onclick="location.reload()">Recharger</button></div>
+      <div class="actions"><button type="button" onclick="location.reload()" data-i18n="web.reload">Recharger</button></div>
     </div>
   </div>
 
   <script src="js/errors.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/gfx.js"></script>
   <script src="js/data.js"></script>
   <script src="js/platform.js"></script>

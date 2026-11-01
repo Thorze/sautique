@@ -160,10 +160,10 @@ internal fun GameView.drawBonus(canvas: Canvas) {
             canvas.drawCircle(w / 2f, cy, r, primaryBtnPaint)
             btnTextPaint.color = Color.WHITE
             btnTextPaint.textSize = w * 0.08f
-            canvas.drawText("TAPE !", w / 2f, cy - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2f, btnTextPaint)
+            canvas.drawText(tr("bonus.tap_button"), w / 2f, cy - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2f, btnTextPaint)
             drawTimeBar(canvas, cy + w * 0.27f, 1f - t / mashDuration)
             textPaint.textSize = w * 0.045f
-            canvas.drawText("+${min(bonusTaps / 4, 10)} points", w / 2f, cy + w * 0.38f, textPaint)
+            canvas.drawText(tr("bonus.points", "n" to min(bonusTaps / 4, 10)), w / 2f, cy + w * 0.38f, textPaint)
         }
         BonusType.STARS -> {
             for (st in stars) {
@@ -220,9 +220,9 @@ internal fun GameView.drawBonus(canvas: Canvas) {
     }
 
     val msg = when {
-        bonusResult != 0 && bonusGain > 0 -> "Bravo ! +$bonusGain"
-        bonusResult != 0 -> "Raté… on continue !"
-        bonusT < bonusIntro -> "Prêt ?"
+        bonusResult != 0 && bonusGain > 0 -> tr("bonus.win", "n" to bonusGain)
+        bonusResult != 0 -> tr("bonus.miss")
+        bonusT < bonusIntro -> tr("bonus.ready")
         else -> ""
     }
     if (msg.isNotEmpty()) {

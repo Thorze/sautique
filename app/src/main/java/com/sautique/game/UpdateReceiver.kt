@@ -27,8 +27,9 @@ class UpdateReceiver : BroadcastReceiver() {
             PackageInstaller.STATUS_SUCCESS -> {}
             PackageInstaller.STATUS_FAILURE_ABORTED -> {}
             else -> {
-                val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "erreur inconnue"
-                Toast.makeText(context, "Mise à jour échouée : $msg", Toast.LENGTH_LONG).show()
+                I18n.init(context)
+                val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: tr("update.unknown_error")
+                Toast.makeText(context, tr("update.failed", "msg" to msg), Toast.LENGTH_LONG).show()
             }
         }
     }

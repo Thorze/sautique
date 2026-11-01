@@ -3,7 +3,9 @@
 
 const WEB_VERSION = '1.0';
 
-(function main() {
+(async function main() {
+  await I18n.loadAll();
+  I18n.use(profile.language);
   const el = document.getElementById('game');
   const ctx = el.getContext('2d');
   const canvas = new Canvas(ctx);

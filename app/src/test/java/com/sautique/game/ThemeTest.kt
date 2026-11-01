@@ -14,11 +14,11 @@ class ThemeTest {
 
     @Test
     fun skyChangesWithScore() {
-        assertEquals("Matin", Theme.sky(0).name)
+        assertEquals("morning", Theme.sky(0).name)
         assertEquals(0f, Theme.sky(0).night)
-        assertEquals("Nuit", Theme.sky(65).name)
+        assertEquals("night", Theme.sky(65).name)
         assertEquals(1f, Theme.sky(65).night)
-        assertEquals("Espace", Theme.sky(500).name)
+        assertEquals("space", Theme.sky(500).name)
         // Transition progressive avant un palier
         val mid = Theme.sky(56).night
         assertTrue(mid > 0.1f && mid < 1f)

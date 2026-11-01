@@ -116,13 +116,13 @@ internal fun GameView.drawPlayer(canvas: Canvas) {
         canvas.drawText("!", ox, headY - (bangPaint.descent() + bangPaint.ascent()) / 2f, bangPaint)
     }
     if (falling) when (fallAnim) {
-        FallAnim.PANIC -> drawBubble(canvas, ox, headY, "Aaaah !")
-        FallAnim.SPIN -> if (fallT < 0.8f) drawBubble(canvas, ox, headY - k * 0.3f, "Wouaah !")
+        FallAnim.PANIC -> drawBubble(canvas, ox, headY, tr("fall.panic"))
+        FallAnim.SPIN -> if (fallT < 0.8f) drawBubble(canvas, ox, headY - k * 0.3f, tr("fall.spin"))
         FallAnim.CARTOON -> when {
             fallT in 0.2f..0.8f -> drawBubble(canvas, ox, headY, "…")
-            fallT in 0.8f..1.5f -> drawBubble(canvas, ox, headY, "Oups !")
+            fallT in 0.8f..1.5f -> drawBubble(canvas, ox, headY, tr("fall.oops"))
         }
-        FallAnim.PARACHUTE -> if (fallT in 1.9f..2.6f) drawBubble(canvas, ox, headY, "Crac !")
+        FallAnim.PARACHUTE -> if (fallT in 1.9f..2.6f) drawBubble(canvas, ox, headY, tr("fall.crack"))
     }
 }
 

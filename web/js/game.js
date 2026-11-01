@@ -194,9 +194,9 @@ function missionEvent(type, amount = 1) {
   if (r.coins <= 0) return;
   profile.coins = profile.coins + r.coins;
   for (const m of r.completed) {
-    banners.push({ text: (m.challenge ? '🏅 Défi du jour réussi ! +' : '✅ Mission réussie ! +') + m.reward + ' 🪙', life: 3 });
+    banners.push({ text: tr(m.challenge ? 'banner.challenge_done' : 'banner.mission_done', { n: m.reward }), life: 3 });
   }
-  if (r.allDoneBonus) banners.push({ text: `🎉 Missions du jour terminées : +${missions.ALL_DONE_REWARD} 🪙`, life: 3.2 });
+  if (r.allDoneBonus) banners.push({ text: tr('banner.missions_all', { n: missions.ALL_DONE_REWARD }), life: 3.2 });
   sounds.play('UNLOCK');
 }
 
@@ -217,8 +217,8 @@ function collectHeart(p) {
   lives = Math.min(lives + 1, maxLives);
   const x = sx(p.cx, p.cz) + camX, y = sy(p.cx, 0.6, p.cz) + camY;
   spawnSparkles(x, y, Color.parseColor('#FF4D8D'), 18);
-  popups.push({ text: '+1 vie ❤️', x, y: y - k * 0.4, life: 1.1 });
-  banners.push({ text: '❤️ Vie bonus ! Si tu tombes, tu reviens', life: 2.6 });
+  popups.push({ text: tr('popup.life'), x, y: y - k * 0.4, life: 1.1 });
+  banners.push({ text: tr('banner.life'), life: 2.6 });
   sounds.play('UNLOCK');
 }
 
@@ -227,7 +227,7 @@ function startRevive() {
   reviveFromX = px; reviveFromY = py; reviveFromZ = pz;
   reviveTarget = !current.collapsed ? current : next;
   reviveT = 0; perfectStreak = 0; gameOverReason = null;
-  banners.push({ text: lives > 0 ? `😇 Sauvé ! Il te reste ${lives} ❤️` : '😇 Sauvé ! Plus de vie en réserve', life: 2.6 });
+  banners.push({ text: lives > 0 ? tr('banner.saved', { n: lives }) : tr('banner.saved_last'), life: 2.6 });
   sounds.play('REVIVE');
   state = State.REVIVE;
 }
@@ -314,7 +314,7 @@ function startCrumble(p) {
   p.crumbleT = 0;
   if (!crumbleHintShown) {
     crumbleHintShown = true;
-    popups.push({ text: "Elle s'effrite, vite !", x: sx(px, pz) + camX, y: sy(px, playerHeight * 3.4, pz) + camY, life: 1.4 });
+    popups.push({ text: tr('popup.crumble'), x: sx(px, pz) + camX, y: sy(px, playerHeight * 3.4, pz) + camY, life: 1.4 });
   }
 }
 
@@ -372,7 +372,7 @@ function update(dt) {
           spawnDebris(p);
           shake(0.08);
           const standing = (state === State.READY || state === State.CHARGING) && p === current;
-          if (standing) { gameOverReason = "La plateforme s'est effondrée !"; startFall(); }
+          if (standing) { gameOverReason = tr('reason.collapsed'); startFall(); }
         }
       }
     }
@@ -429,7 +429,7 @@ function land() {
     if (perfect && perfectStreak >= 3) { perfectPulse = 1; lastPerfectPoints = points; shownStreak = perfectStreak; }
     if (next.kind === Kind.MINI) points += Scoring.MINI_BONUS;
     score += points;
-    popups.push({ text: perfect ? `Parfait ! +${points}` : `+${points}`, x: sx(px, pz) + camX, y: sy(px, playerHeight * 2.2, pz) + camY, life: 0.8 });
+    popups.push({ text: perfect ? tr('popup.perfect', { n: points }) : `+${points}`, x: sx(px, pz) + camX, y: sy(px, playerHeight * 2.2, pz) + camY, life: 0.8 });
     spawnDust(px, pz);
     if (perfect) spawnSparkles(sx(px, pz) + camX, sy(px, 0.3, pz) + camY, Color.parseColor('#FFD54F'), 16);
     if (!scared) vibrate(15);
@@ -448,7 +448,7 @@ function land() {
     startCrumble(current);
     if (current.kind === Kind.TRAMPOLINE) {
       pendingBounce = true; bounceDelay = 0.3; current.bounce = 1;
-      popups.push({ text: 'Boing !', x: sx(px, pz) + camX, y: sy(px, playerHeight * 3.4, pz) + camY, life: 0.9 });
+      popups.push({ text: tr('popup.boing'), x: sx(px, pz) + camX, y: sy(px, playerHeight * 3.4, pz) + camY, life: 0.9 });
       missionEvent(MissionType.TRAMPOLINES);
     }
     if (jumps % bonusEvery === 0) startBonus(); else state = State.READY;
@@ -500,7 +500,7 @@ function draw(canvas) {
   canvas.drawText(String(score), w / 2, insetTop + h * 0.17, scorePaint);
   textPaint.textSize = w * 0.045;
   const livesText = lives > 0 ? '   ' + '❤️'.repeat(lives) : '';
-  canvas.drawText(`Record : ${best}   🪙 ${profile.coins}${livesText}`, w / 2, insetTop + h * 0.17 + w * 0.08, textPaint);
+  canvas.drawText(tr('common.record', { n: best }) + `   🪙 ${profile.coins}${livesText}`, w / 2, insetTop + h * 0.17 + w * 0.08, textPaint);
   drawBanners(canvas);
 
   buttons = [];
@@ -512,19 +512,19 @@ function draw(canvas) {
 
   if (state === State.READY && score === 0) {
     textPaint.textSize = w * 0.05;
-    canvas.drawText('Maintiens appuyé pour sauter', w / 2, ub() - w * 0.27, textPaint);
+    canvas.drawText(tr('hud.hint1'), w / 2, ub() - w * 0.27, textPaint);
     textPaint.textSize = w * 0.04;
-    canvas.drawText('plus longtemps = plus loin', w / 2, ub() - w * 0.2, textPaint);
+    canvas.drawText(tr('hud.hint2'), w / 2, ub() - w * 0.2, textPaint);
     const ch = w * 0.085, top = insetTop + w * 0.04;
-    drawButton(canvas, new RectF(w * 0.03, top, w * 0.33, top + ch), '✎ ' + (profile.pseudo || 'Pseudo'), chipPaint, w * 0.036, () => askPseudo(false));
-    drawButton(canvas, new RectF(w * 0.67, top, w * 0.97, top + ch), '🏆 Classement', chipPaint, w * 0.036, () => openBoard(0));
+    drawButton(canvas, new RectF(w * 0.03, top, w * 0.33, top + ch), '✎ ' + (profile.pseudo || tr('menu.pseudo')), chipPaint, w * 0.036, () => askPseudo(false));
+    drawButton(canvas, new RectF(w * 0.67, top, w * 0.97, top + ch), tr('menu.board'), chipPaint, w * 0.036, () => openBoard(0));
     const ty = top + ch + w * 0.025;
     const doneCount = missions.list().filter((_, i) => missions.isDone(i)).length;
-    drawButton(canvas, new RectF(w * 0.67, ty, w * 0.97, ty + ch), `📋 Missions ${doneCount}/4`, chipPaint, w * 0.034, () => openMissions());
+    drawButton(canvas, new RectF(w * 0.67, ty, w * 0.97, ty + ch), tr('menu.missions') + ` ${doneCount}/4`, chipPaint, w * 0.034, () => openMissions());
     drawButton(canvas, new RectF(w * 0.03, ty, w * 0.33, ty + ch),
-      (sounds.soundVolume > 0 || sounds.musicVolume > 0 ? '🔊' : '🔇') + ' Son', chipPaint, w * 0.036, () => openSettings());
+      (sounds.soundVolume > 0 || sounds.musicVolume > 0 ? '🔊' : '🔇') + ' ' + tr('menu.sound'), chipPaint, w * 0.036, () => openSettings());
     const vy = ub() - w * 0.11;
-    drawButton(canvas, new RectF(w * 0.6, vy, w * 0.97, vy + w * 0.075), '🎨 Personnage', chipPaint, w * 0.034, () => openCustomize());
+    drawButton(canvas, new RectF(w * 0.6, vy, w * 0.97, vy + w * 0.075), tr('menu.character'), chipPaint, w * 0.034, () => openCustomize());
     drawButton(canvas, new RectF(w * 0.03, vy, w * 0.3, vy + w * 0.075), 'Web ' + WEB_VERSION, chipPaint, w * 0.032, () => {});
   }
 

@@ -24,7 +24,7 @@ internal fun GameView.askPseudo(first: Boolean, error: String? = null) {
     pseudoDialogShown = true
     val input = android.widget.EditText(context).apply {
         setText(profile.pseudo ?: "")
-        hint = "Ton pseudo"
+        hint = tr("pseudo.hint")
         setSingleLine()
         filters = arrayOf(android.text.InputFilter.LengthFilter(16))
         setSelection(text.length)
@@ -36,21 +36,21 @@ internal fun GameView.askPseudo(first: Boolean, error: String? = null) {
     }
     val mustChoose = first || pseudoConflict
     android.app.AlertDialog.Builder(context)
-        .setTitle(if (first) "Choisis ton pseudo" else "Changer de pseudo")
-        .setMessage(error ?: "Il apparaîtra dans le classement mondial.")
+        .setTitle(if (first) tr("pseudo.title_first") else tr("pseudo.title_change"))
+        .setMessage(error ?: tr("pseudo.info"))
         .setView(container)
         .setCancelable(!mustChoose)
         .setPositiveButton("OK") { _, _ ->
             val p = input.text.toString().trim()
             if (p.isEmpty()) {
-                if (profile.pseudo.isNullOrBlank()) profile.pseudo = "Joueur" + Random.nextInt(1000, 10000)
+                if (profile.pseudo.isNullOrBlank()) profile.pseudo = tr("pseudo.default") + Random.nextInt(1000, 10000)
                 afterPseudo()
                 return@setPositiveButton
             }
             // Vérifie auprès du serveur que personne d'autre ne l'utilise
             online.checkPseudo(p, profile.playerId) { free ->
                 if (free == false) {
-                    post { askPseudo(first, "« $p » est déjà pris, choisis-en un autre.") }
+                    post { askPseudo(first, tr("pseudo.taken", "name" to p)) }
                 } else {
                     profile.pseudo = p
                     pseudoConflict = false
@@ -58,7 +58,7 @@ internal fun GameView.askPseudo(first: Boolean, error: String? = null) {
                 }
             }
         }
-        .apply { if (!mustChoose) setNegativeButton("Annuler", null) }
+        .apply { if (!mustChoose) setNegativeButton(tr("common.cancel"), null) }
         .setOnDismissListener { pseudoDialogShown = false }
         .show()
 }
@@ -86,7 +86,7 @@ internal fun GameView.syncOnline() {
             }
             ScoreServer.SubmitResult.PSEUDO_TAKEN -> {
                 pseudoConflict = true
-                askPseudo(false, "Le pseudo « $pseudo » est déjà utilisé par un autre joueur. Choisis-en un autre.")
+                askPseudo(false, tr("pseudo.taken_sync", "name" to pseudo))
             }
             // Score refusé par le serveur : on ne réessaie pas
             ScoreServer.SubmitResult.REJECTED -> {
@@ -170,12 +170,19 @@ internal fun GameView.drawButton(canvas: Canvas, r: RectF, label: String, bg: Pa
     btnTextPaint.textSize = textSize
     btnTextPaint.color = if (bg === tabOffPaint || bg === lockedPaint || bg === shopPaint || (bg === itemPaint && isLight(bg.color)))
         Color.parseColor("#2E3A59") else Color.WHITE
-    val label2 = ellipsize(label, btnTextPaint, r.width() - radius)
+    val label2 = fitText(label, btnTextPaint, r.width() - radius)
     canvas.drawText(label2, r.centerX(), r.centerY() - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2f, btnTextPaint)
     buttons.add(Button(RectF(r), action))
 }
 
 internal fun GameView.isLight(c: Int) = Color.red(c) * 0.3f + Color.green(c) * 0.59f + Color.blue(c) * 0.11f > 170f
+
+/** Réduit un peu la taille du texte s'il est trop long (langues aux mots longs), puis le coupe si besoin. */
+internal fun GameView.fitText(text: String, paint: Paint, maxWidth: Float, minScale: Float = 0.72f): String {
+    val tw = paint.measureText(text)
+    if (tw > maxWidth) paint.textSize *= maxOf(minScale, maxWidth / tw)
+    return ellipsize(text, paint, maxWidth)
+}
 
 internal fun GameView.ellipsize(text: String, paint: Paint, maxWidth: Float): String {
     if (paint.measureText(text) <= maxWidth) return text
@@ -196,12 +203,12 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
     // Titre
     darkTextPaint.textAlign = Paint.Align.CENTER
     darkTextPaint.textSize = w * 0.075f
-    canvas.drawText("Classement", w / 2f, top + w * 0.12f, darkTextPaint)
+    canvas.drawText(tr("board.title"), w / 2f, top + w * 0.12f, darkTextPaint)
 
     // Onglets
     val tabTop = top + w * 0.17f
     val tabH = w * 0.1f
-    val tabs = listOf("Perso", "Semaine", "Mondial")
+    val tabs = listOf(tr("board.tab_mine"), tr("board.tab_week"), tr("board.tab_world"))
     val tw = (right - left - w * 0.08f) / tabs.size
     tabs.forEachIndexed { i, label ->
         val x0 = left + w * 0.04f + i * tw
@@ -250,24 +257,24 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
 
     if (boardTab == 0) {
         if (personalRuns.isEmpty()) {
-            canvas.drawText("Pas encore de partie.", w / 2f, centerY, greyTextPaint)
+            canvas.drawText(tr("board.no_games"), w / 2f, centerY, greyTextPaint)
         } else {
             personalRuns.forEachIndexed { i, r -> row(i, dateFormat.format(java.util.Date(r.time)), r.score.toString(), false) }
         }
         greyTextPaint.textSize = w * 0.04f
-        canvas.drawText("Record : $best", w / 2f, footer, greyTextPaint)
+        canvas.drawText(tr("common.record", "n" to best), w / 2f, footer, greyTextPaint)
     } else {
         when (worldStatus) {
             WorldStatus.LOADING, WorldStatus.IDLE ->
-                canvas.drawText("Chargement…", w / 2f, centerY, greyTextPaint)
+                canvas.drawText(tr("board.loading"), w / 2f, centerY, greyTextPaint)
             WorldStatus.ERROR -> {
-                canvas.drawText("Impossible de charger le classement.", w / 2f, centerY, greyTextPaint)
-                canvas.drawText("Vérifie ta connexion.", w / 2f, centerY + w * 0.07f, greyTextPaint)
+                canvas.drawText(tr("board.error"), w / 2f, centerY, greyTextPaint)
+                canvas.drawText(tr("board.check_connection"), w / 2f, centerY + w * 0.07f, greyTextPaint)
             }
             WorldStatus.NOT_CONFIGURED ->
-                canvas.drawText("Classement mondial non configuré.", w / 2f, centerY, greyTextPaint)
+                canvas.drawText(tr("board.not_configured"), w / 2f, centerY, greyTextPaint)
             WorldStatus.OK -> {
-                if (worldEntries.isEmpty()) canvas.drawText("Aucun score pour l'instant.", w / 2f, centerY, greyTextPaint)
+                if (worldEntries.isEmpty()) canvas.drawText(tr("board.empty"), w / 2f, centerY, greyTextPaint)
                 canvas.save()
                 canvas.clipRect(left, listTop, right, listBottom)
                 worldEntries.forEachIndexed { i, e -> row(i, e.pseudo, e.best.toString(), e.me) }
@@ -285,17 +292,17 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
         greyTextPaint.textSize = w * 0.04f
         val rank = worldRank
         val info = when {
-            best <= 0 -> "Joue une partie pour entrer au classement !"
-            rank != null && boardTab == 1 -> "${profile.pseudo ?: ""} : place n°$rank cette semaine"
-            rank != null -> "${profile.pseudo ?: ""} : place n°$rank  (record $best)"
-            boardTab == 1 -> "Pas encore de score cette semaine"
-            else -> "Ton record : $best"
+            best <= 0 -> tr("board.play_first")
+            rank != null && boardTab == 1 -> tr("board.rank_week", "name" to (profile.pseudo ?: ""), "rank" to rank)
+            rank != null -> tr("board.rank_all", "name" to (profile.pseudo ?: ""), "rank" to rank, "n" to best)
+            boardTab == 1 -> tr("board.no_week")
+            else -> tr("board.your_record", "n" to best)
         }
         canvas.drawText(ellipsize(info, greyTextPaint, right - left - w * 0.06f), w / 2f, footer, greyTextPaint)
     }
 
     // Retour
-    drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.15f, w * 0.7f, bottom - w * 0.05f), "Retour",
+    drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.15f, w * 0.7f, bottom - w * 0.05f), tr("common.back"),
         primaryBtnPaint, w * 0.045f) { state = boardReturnState }
 }
 
@@ -337,7 +344,7 @@ internal fun GameView.drawSlider(canvas: Canvas, r: RectF, label: String, value:
     darkTextPaint.textSize = w * 0.05f
     canvas.drawText(label, r.left, r.top - w * 0.05f, darkTextPaint)
     darkTextPaint.textAlign = Paint.Align.RIGHT
-    canvas.drawText(if (value <= 0f) "Coupé" else "${(value * 100).toInt()} %", r.right, r.top - w * 0.05f, darkTextPaint)
+    canvas.drawText(if (value <= 0f) tr("settings.off") else "${(value * 100).toInt()} %", r.right, r.top - w * 0.05f, darkTextPaint)
     val bh = r.height()
     canvas.drawRoundRect(r, bh / 2, bh / 2, tabOffPaint)
     rect.set(r.left, r.top, r.left + r.width() * value, r.bottom)
@@ -352,31 +359,40 @@ internal fun GameView.drawSettings(canvas: Canvas) {
     canvas.drawRect(0f, 0f, w, h, overlayPaint)
     val left = w * 0.06f
     val right = w * 0.94f
-    val top = ((insetTop + ub) / 2f - w * 0.63f).coerceAtLeast(insetTop)
-    val bottom = top + w * 1.26f
+    val top = ((insetTop + ub) / 2f - w * 0.705f).coerceAtLeast(insetTop)
+    val bottom = top + w * 1.41f
     rect.set(left, top, right, bottom)
     canvas.drawRoundRect(rect, w * 0.05f, w * 0.05f, panelPaint)
     darkTextPaint.textAlign = Paint.Align.CENTER
     darkTextPaint.textSize = w * 0.07f
-    canvas.drawText("Réglages", w / 2f, top + w * 0.11f, darkTextPaint)
+    canvas.drawText(tr("settings.title"), w / 2f, top + w * 0.11f, darkTextPaint)
 
     val sl = left + w * 0.08f
     val sr = right - w * 0.08f
     val bh = w * 0.035f
     sfxSlider.set(sl, top + w * 0.3f, sr, top + w * 0.3f + bh)
     musicSlider.set(sl, top + w * 0.55f, sr, top + w * 0.55f + bh)
-    drawSlider(canvas, sfxSlider, "Effets sonores", sounds.soundVolume)
-    drawSlider(canvas, musicSlider, "Musique", sounds.musicVolume)
+    drawSlider(canvas, sfxSlider, tr("settings.sfx"), sounds.soundVolume)
+    drawSlider(canvas, musicSlider, tr("settings.music"), sounds.musicVolume)
     drawButton(canvas, RectF(sl, top + w * 0.68f, sr, top + w * 0.79f),
-        "📳 Vibrations : " + (if (profile.vibrationOn) "oui" else "non"),
+        tr("settings.vibration", "v" to yesNo(profile.vibrationOn)),
         if (profile.vibrationOn) tabOnPaint else tabOffPaint, w * 0.042f) {
         profile.vibrationOn = !profile.vibrationOn
         if (profile.vibrationOn) vibrate(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
     }
     drawButton(canvas, RectF(sl, top + w * 0.83f, sr, top + w * 0.94f),
-        "📺 Fausses pubs : " + (if (profile.fakeAdsOn) "oui" else "non"),
+        tr("settings.fake_ads", "v" to yesNo(profile.fakeAdsOn)),
         if (profile.fakeAdsOn) tabOnPaint else tabOffPaint, w * 0.042f) {
         profile.fakeAdsOn = !profile.fakeAdsOn
+    }
+    // Langue : Auto (langue du téléphone), puis chaque langue disponible
+    val langLabel = if (profile.language == I18n.AUTO) tr("settings.language_auto", "v" to I18n.nameOf(I18n.lang))
+        else I18n.nameOf(profile.language)
+    drawButton(canvas, RectF(sl, top + w * 0.98f, sr, top + w * 1.09f), tr("settings.language", "v" to langLabel),
+        tabOffPaint, w * 0.042f) {
+        val choices = listOf(I18n.AUTO) + I18n.languages
+        profile.language = choices[(choices.indexOf(profile.language) + 1) % choices.size]
+        I18n.init(context, force = true)
     }
 
     drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.17f, w * 0.7f, bottom - w * 0.06f), "OK",
@@ -394,7 +410,7 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
 
     darkTextPaint.textAlign = Paint.Align.CENTER
     darkTextPaint.textSize = w * 0.07f
-    canvas.drawText("Ton personnage", w / 2f, top + w * 0.1f, darkTextPaint)
+    canvas.drawText(tr("custom.title"), w / 2f, top + w * 0.1f, darkTextPaint)
 
     // Mise en page adaptative : le bas (texte + OK) est fixe, la peinture juste au-dessus,
     // l'aperçu et les boutons rétrécissent si l'écran est court.
@@ -480,7 +496,7 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
                     loadLook()
                 }
                 item.isShop && profile.coins < item.price -> {
-                    custMsg = "Il te manque ${item.price - profile.coins} 🪙 pour « ${item.label} »"
+                    custMsg = tr("custom.missing", "n" to item.price - profile.coins, "item" to item.label)
                     custMsgT = 2.5f
                 }
                 // Achat : un premier appui demande confirmation, le second achète
@@ -488,7 +504,7 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
                     if (profile.buy(item)) {
                         profile.select(custSlot, item.id)
                         loadLook()
-                        custMsg = "🎉 « ${item.label} » acheté !"
+                        custMsg = tr("custom.bought", "item" to item.label)
                         custMsgT = 2.5f
                         sounds.play(Sounds.Sfx.UNLOCK)
                     }
@@ -496,11 +512,11 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
                 }
                 item.isShop -> {
                     pendingBuy = item
-                    custMsg = "Touche encore pour acheter « ${item.label} » (${item.price} 🪙)"
+                    custMsg = tr("custom.confirm", "item" to item.label, "n" to item.price)
                     custMsgT = 3f
                 }
                 else -> {
-                    custMsg = "🔒 Se débloque à ${item.cost} points cumulés"
+                    custMsg = tr("custom.locked", "n" to item.cost)
                     custMsgT = 2.5f
                 }
             }
@@ -513,7 +529,7 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
         val ty = min(gridTop + rows * step + w * 0.02f, tintTop) + w * 0.035f
         darkTextPaint.textAlign = Paint.Align.LEFT
         darkTextPaint.textSize = w * 0.036f
-        canvas.drawText("Peinture de l'objet", left + w * 0.05f, ty, darkTextPaint)
+        canvas.drawText(tr("custom.paint"), left + w * 0.05f, ty, darkTextPaint)
         val chosen = profile.selectedTint(custSlot)
         val count = Skins.tints.size
         val tstep = (right - left - w * 0.1f) / count
@@ -547,14 +563,14 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
                         loadLook()
                     }
                     profile.coins < t.price -> {
-                        custMsg = "Il te manque ${t.price - profile.coins} 🪙 pour la peinture ${t.label.lowercase()}"
+                        custMsg = tr("custom.paint_missing", "n" to t.price - profile.coins, "paint" to t.label)
                         custMsgT = 2.5f
                     }
                     pendingTint === t && custMsgT > 0f -> {
                         if (profile.buyTint(t)) {
                             profile.selectTint(custSlot, t.id)
                             loadLook()
-                            custMsg = "🎨 Peinture ${t.label.lowercase()} achetée ! Utilisable sur tous les objets"
+                            custMsg = tr("custom.paint_bought", "paint" to t.label)
                             custMsgT = 3f
                             sounds.play(Sounds.Sfx.UNLOCK)
                         }
@@ -562,7 +578,7 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
                     }
                     else -> {
                         pendingTint = t
-                        custMsg = "Touche encore pour acheter la peinture ${t.label.lowercase()} (${t.price} 🪙)"
+                        custMsg = tr("custom.paint_confirm", "paint" to t.label, "n" to t.price)
                         custMsgT = 3f
                     }
                 }
@@ -576,9 +592,9 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
     val info = when {
         custMsgT > 0f -> custMsg
         lookSpecial != Skins.NONE && custSlot != Skins.Slot.CHARACTER && custSlot != Skins.Slot.TRAIL ->
-            "Sans effet sur un perso spécial"
-        nextItem != null -> "🪙 ${profile.coins} · $pts pts · prochain : ${nextItem.label} à ${nextItem.cost}"
-        else -> "🪙 ${profile.coins} · $pts pts · tout est débloqué !"
+            tr("custom.special")
+        nextItem != null -> tr("custom.info_next", "coins" to profile.coins, "pts" to pts, "item" to nextItem.label, "n" to nextItem.cost)
+        else -> tr("custom.info_all", "coins" to profile.coins, "pts" to pts)
     }
     canvas.drawText(ellipsize(info, greyTextPaint, right - left - w * 0.06f), w / 2f, footY, greyTextPaint)
     drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.15f, w * 0.7f, bottom - w * 0.05f), "OK",
@@ -593,45 +609,45 @@ internal fun GameView.drawGameOver(canvas: Canvas) {
         canvas.drawText(it, w / 2f, y0 - w * 0.14f, textPaint)
     }
     textPaint.textSize = w * 0.12f
-    canvas.drawText("Perdu !", w / 2f, y0, textPaint)
+    canvas.drawText(tr("over.title"), w / 2f, y0, textPaint)
     textPaint.textSize = w * 0.07f
-    canvas.drawText("Score : $score", w / 2f, y0 + w * 0.14f, textPaint)
+    canvas.drawText(tr("common.score", "n" to score), w / 2f, y0 + w * 0.14f, textPaint)
     canvas.drawText(
-        if (newBest) "Nouveau record !" else "Record : $best",
+        if (newBest) tr("over.new_record") else tr("common.record", "n" to best),
         w / 2f, y0 + w * 0.24f, textPaint
     )
     if (coinsThisRun > 0) {
         textPaint.textSize = w * 0.045f
-        canvas.drawText("+$coinsThisRun 🪙 ramassées (total ${profile.coins})", w / 2f, y0 + w * 0.31f, textPaint)
+        canvas.drawText(tr("over.coins", "n" to coinsThisRun, "total" to profile.coins), w / 2f, y0 + w * 0.31f, textPaint)
     }
     if (gameOverTime > 0.6f) {
         val bh = w * 0.13f
         var y = y0 + w * 0.36f
-        drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + bh), "Rejouer", primaryBtnPaint, w * 0.06f) { replay() }
+        drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + bh), tr("over.replay"), primaryBtnPaint, w * 0.06f) { replay() }
         y += bh + w * 0.04f
         val sh = w * 0.11f
-        drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), "🏆 Classement", secondaryBtnPaint, w * 0.042f) {
+        drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), tr("menu.board"), secondaryBtnPaint, w * 0.042f) {
             openBoard(1)
         }
-        drawButton(canvas, RectF(w * 0.51f, y, w * 0.9f, y + sh), "📋 Missions", secondaryBtnPaint, w * 0.042f) {
+        drawButton(canvas, RectF(w * 0.51f, y, w * 0.9f, y + sh), tr("menu.missions"), secondaryBtnPaint, w * 0.042f) {
             openMissions()
         }
         y += sh + w * 0.04f
-        drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), "✎ " + (profile.pseudo ?: "Pseudo"),
+        drawButton(canvas, RectF(w * 0.1f, y, w * 0.49f, y + sh), "✎ " + (profile.pseudo ?: tr("menu.pseudo")),
             chipPaint, w * 0.04f) { askPseudo(first = false) }
-        drawButton(canvas, RectF(w * 0.51f, y, w * 0.9f, y + sh), "🎨 Personnage",
+        drawButton(canvas, RectF(w * 0.51f, y, w * 0.9f, y + sh), tr("menu.character"),
             chipPaint, w * 0.04f) { openCustomize() }
         y += sh + w * 0.08f
         textPaint.textSize = w * 0.042f
         if (unlockedLabels.isNotEmpty()) {
-            canvas.drawText(ellipsize("🎁 Débloqué : " + unlockedLabels.joinToString(", "), textPaint, w * 0.92f),
+            canvas.drawText(ellipsize(tr("over.unlocked", "items" to unlockedLabels.joinToString(", ")), textPaint, w * 0.92f),
                 w / 2f, y, textPaint)
             y += w * 0.065f
         }
         val pts = profile.totalPoints
         Skins.nextUnlock(pts)?.let {
             textPaint.textSize = w * 0.036f
-            canvas.drawText("Prochain : ${it.label} (encore ${it.cost - pts} pts)", w / 2f, y, textPaint)
+            canvas.drawText(tr("over.next", "item" to it.label, "n" to it.cost - pts), w / 2f, y, textPaint)
         }
     }
 }
@@ -641,24 +657,24 @@ internal fun GameView.drawPause(canvas: Canvas) {
     canvas.drawRect(0f, 0f, w, h, overlayPaint)
     val y0 = h * 0.3f
     textPaint.textSize = w * 0.12f
-    canvas.drawText("Pause", w / 2f, y0, textPaint)
+    canvas.drawText(tr("pause.title"), w / 2f, y0, textPaint)
     textPaint.textSize = w * 0.045f
-    canvas.drawText("Score : $score", w / 2f, y0 + w * 0.09f, textPaint)
+    canvas.drawText(tr("common.score", "n" to score), w / 2f, y0 + w * 0.09f, textPaint)
     val bh = w * 0.13f
     var y = y0 + w * 0.17f
-    drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + bh), "▶ Reprendre", primaryBtnPaint, w * 0.06f) { resumeGame() }
+    drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + bh), tr("pause.resume"), primaryBtnPaint, w * 0.06f) { resumeGame() }
     y += bh + w * 0.04f
     val sh = w * 0.11f
-    drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + sh), "🔊 Son", secondaryBtnPaint, w * 0.045f) { openSettings() }
+    drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + sh), "🔊 " + tr("menu.sound"), secondaryBtnPaint, w * 0.045f) { openSettings() }
     y += sh + w * 0.03f
     drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + sh),
-        "📳 Vibrations : " + (if (profile.vibrationOn) "oui" else "non"), secondaryBtnPaint, w * 0.045f) {
+        tr("settings.vibration", "v" to yesNo(profile.vibrationOn)), secondaryBtnPaint, w * 0.045f) {
         profile.vibrationOn = !profile.vibrationOn
         if (profile.vibrationOn) vibrate(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
     }
     y += sh + w * 0.03f
-    drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + sh), "Abandonner", chipPaint, w * 0.045f) {
-        endGame("Partie abandonnée")
+    drawButton(canvas, RectF(w * 0.2f, y, w * 0.8f, y + sh), tr("pause.quit"), chipPaint, w * 0.045f) {
+        endGame(tr("pause.quit_reason"))
     }
 }
 
@@ -673,9 +689,9 @@ internal fun GameView.drawMissions(canvas: Canvas) {
     canvas.drawRoundRect(rect, w * 0.05f, w * 0.05f, panelPaint)
     darkTextPaint.textAlign = Paint.Align.CENTER
     darkTextPaint.textSize = w * 0.07f
-    canvas.drawText("Missions du jour", w / 2f, top + w * 0.11f, darkTextPaint)
+    canvas.drawText(tr("missions.title"), w / 2f, top + w * 0.11f, darkTextPaint)
     greyTextPaint.textSize = w * 0.04f
-    canvas.drawText("🪙 ${profile.coins} pièces · nouvelles missions chaque jour", w / 2f, top + w * 0.18f, greyTextPaint)
+    canvas.drawText(tr("missions.subtitle", "n" to profile.coins), w / 2f, top + w * 0.18f, greyTextPaint)
 
     val list = missions.list()
     var y = top + w * 0.26f
@@ -684,7 +700,7 @@ internal fun GameView.drawMissions(canvas: Canvas) {
         if (m.challenge) {
             darkTextPaint.textAlign = Paint.Align.LEFT
             darkTextPaint.textSize = w * 0.045f
-            canvas.drawText("🏅 Défi du jour", left + w * 0.05f, y + w * 0.06f, darkTextPaint)
+            canvas.drawText(tr("missions.challenge"), left + w * 0.05f, y + w * 0.06f, darkTextPaint)
             y += w * 0.09f
         }
         val done = missions.isDone(i)
@@ -694,7 +710,8 @@ internal fun GameView.drawMissions(canvas: Canvas) {
         darkTextPaint.textAlign = Paint.Align.LEFT
         darkTextPaint.textSize = w * 0.042f
         val label = (if (done) "✅ " else "") + m.label
-        canvas.drawText(ellipsize(label, darkTextPaint, right - left - w * 0.3f), left + w * 0.08f, y + w * 0.075f, darkTextPaint)
+        canvas.drawText(fitText(label, darkTextPaint, right - left - w * 0.3f), left + w * 0.08f, y + w * 0.075f, darkTextPaint)
+        darkTextPaint.textSize = w * 0.042f
         darkTextPaint.textAlign = Paint.Align.RIGHT
         canvas.drawText("+${m.reward} 🪙", right - w * 0.08f, y + w * 0.075f, darkTextPaint)
         // Barre de progression
@@ -716,8 +733,8 @@ internal fun GameView.drawMissions(canvas: Canvas) {
     greyTextPaint.textSize = w * 0.038f
     val allDone = missions.allMissionsDone()
     canvas.drawText(
-        if (allDone) "🎉 Les 3 missions sont terminées !"
-        else "Termine les 3 missions : +${DailyMissions.ALL_DONE_REWARD} 🪙 en plus",
+        if (allDone) tr("missions.all_done")
+        else tr("missions.all_bonus", "n" to DailyMissions.ALL_DONE_REWARD),
         w / 2f, bottom - w * 0.2f, greyTextPaint
     )
     drawButton(canvas, RectF(w * 0.3f, bottom - w * 0.15f, w * 0.7f, bottom - w * 0.05f), "OK",

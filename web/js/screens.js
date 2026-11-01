@@ -8,8 +8,8 @@ function askPseudo(first, error = null) {
   pseudoDialogShown = true;
   const dlg = document.getElementById('pseudo-dialog');
   const input = document.getElementById('pseudo-input');
-  document.getElementById('pseudo-title').textContent = first ? 'Choisis ton pseudo' : 'Changer de pseudo';
-  document.getElementById('pseudo-msg').textContent = error || 'Il apparaîtra dans le classement mondial.';
+  document.getElementById('pseudo-title').textContent = first ? tr('pseudo.title_first') : tr('pseudo.title_change');
+  document.getElementById('pseudo-msg').textContent = error || tr('pseudo.info');
   const cancel = document.getElementById('pseudo-cancel');
   const mustChoose = first || pseudoConflict;
   cancel.style.display = mustChoose ? 'none' : '';
@@ -22,12 +22,12 @@ function askPseudo(first, error = null) {
     const p = input.value.trim().slice(0, 16);
     close();
     if (!p) {
-      if (!profile.pseudo) profile.pseudo = 'Joueur' + (1000 + rndInt(9000));
+      if (!profile.pseudo) profile.pseudo = tr('pseudo.default') + (1000 + rndInt(9000));
       afterPseudo();
       return;
     }
     online.checkPseudo(p, profile.playerId).then((free) => {
-      if (free === false) askPseudo(first, `« ${p} » est déjà pris, choisis-en un autre.`);
+      if (free === false) askPseudo(first, tr('pseudo.taken', { name: p }));
       else { profile.pseudo = p; pseudoConflict = false; afterPseudo(); }
     });
   };
@@ -54,7 +54,7 @@ function syncOnline() {
       if (profile.needsSync() && (profile.pendingScore !== sc || profile.pseudo !== pseudo)) syncOnline();
     } else if (result === 'taken') {
       pseudoConflict = true;
-      askPseudo(false, `Le pseudo « ${pseudo} » est déjà utilisé par un autre joueur. Choisis-en un autre.`);
+      askPseudo(false, tr('pseudo.taken_sync', { name: pseudo }));
     } else if (result === 'rejected') {
       profile.clearPending(sc);
       profile.syncedPseudo = pseudo;
@@ -107,8 +107,15 @@ function drawButton(canvas, r, label, bg, textSize, action) {
   btnTextPaint.textSize = textSize;
   btnTextPaint.color = (bg === tabOffPaint || bg === lockedPaint || bg === shopPaint || (bg === itemPaint && isLight(bg.color)))
     ? Color.parseColor('#2E3A59') : Color.WHITE;
-  canvas.drawText(ellipsize(label, btnTextPaint, r.width() - radius), r.centerX(), r.centerY() - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2, btnTextPaint);
+  canvas.drawText(fitText(label, btnTextPaint, r.width() - radius), r.centerX(), r.centerY() - (btnTextPaint.descent() + btnTextPaint.ascent()) / 2, btnTextPaint);
   buttons.push({ rect: new RectF(r.left, r.top, r.right, r.bottom), action });
+}
+
+/** Réduit un peu la taille du texte s'il est trop long (langues aux mots longs), puis le coupe si besoin. */
+function fitText(text, paint, maxWidth, minScale = 0.72) {
+  const tw = paint.measureText(text);
+  if (tw > maxWidth) paint.textSize *= Math.max(minScale, maxWidth / tw);
+  return ellipsize(text, paint, maxWidth);
 }
 
 function ellipsize(text, paint, maxWidth) {
@@ -129,9 +136,9 @@ function drawLeaderboard(canvas) {
   const left = w * 0.06, right = w * 0.94, top = insetTop + h * 0.05, bottom = ub() - h * 0.03;
   panel(canvas, left, top, right, bottom);
   darkTextPaint.textAlign = Align.CENTER; darkTextPaint.textSize = w * 0.075;
-  canvas.drawText('Classement', w / 2, top + w * 0.12, darkTextPaint);
+  canvas.drawText(tr('board.title'), w / 2, top + w * 0.12, darkTextPaint);
   const tabTop = top + w * 0.17, tabH = w * 0.1;
-  const tabs = ['Perso', 'Semaine', 'Mondial'];
+  const tabs = [tr('board.tab_mine'), tr('board.tab_week'), tr('board.tab_world')];
   const tw = (right - left - w * 0.08) / tabs.length;
   tabs.forEach((label, i) => {
     const x0 = left + w * 0.04 + i * tw;
@@ -166,20 +173,20 @@ function drawLeaderboard(canvas) {
     canvas.drawText(value, colScore, ty, darkTextPaint);
   };
   if (boardTab === 0) {
-    if (!personalRuns.length) canvas.drawText('Pas encore de partie.', w / 2, centerY, greyTextPaint);
+    if (!personalRuns.length) canvas.drawText(tr('board.no_games'), w / 2, centerY, greyTextPaint);
     else personalRuns.forEach((r, i) => {
       const d = new Date(r.time);
-      row(i, `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(2)}`, String(r.score), false);
+      row(i, fmtDate(d), String(r.score), false);
     });
     greyTextPaint.textSize = w * 0.04;
-    canvas.drawText('Record : ' + best, w / 2, footer, greyTextPaint);
+    canvas.drawText(tr('common.record', { n: best }), w / 2, footer, greyTextPaint);
   } else {
-    if (worldStatus === 'loading' || worldStatus === 'idle') canvas.drawText('Chargement…', w / 2, centerY, greyTextPaint);
+    if (worldStatus === 'loading' || worldStatus === 'idle') canvas.drawText(tr('board.loading'), w / 2, centerY, greyTextPaint);
     else if (worldStatus === 'error') {
-      canvas.drawText('Impossible de charger le classement.', w / 2, centerY, greyTextPaint);
-      canvas.drawText('Vérifie ta connexion.', w / 2, centerY + w * 0.07, greyTextPaint);
+      canvas.drawText(tr('board.error'), w / 2, centerY, greyTextPaint);
+      canvas.drawText(tr('board.check_connection'), w / 2, centerY + w * 0.07, greyTextPaint);
     } else {
-      if (!worldEntries.length) canvas.drawText("Aucun score pour l'instant.", w / 2, centerY, greyTextPaint);
+      if (!worldEntries.length) canvas.drawText(tr('board.empty'), w / 2, centerY, greyTextPaint);
       canvas.save();
       canvas.clipRect(left, listTop, right, listBottom);
       worldEntries.forEach((e, i) => row(i, e.pseudo, String(e.best), e.me));
@@ -194,13 +201,13 @@ function drawLeaderboard(canvas) {
     }
     greyTextPaint.textSize = w * 0.04;
     const pseudo = profile.pseudo || '';
-    const info = best <= 0 ? 'Joue une partie pour entrer au classement !'
-      : worldRank != null && boardTab === 1 ? `${pseudo} : place n°${worldRank} cette semaine`
-        : worldRank != null ? `${pseudo} : place n°${worldRank}  (record ${best})`
-          : boardTab === 1 ? 'Pas encore de score cette semaine' : 'Ton record : ' + best;
+    const info = best <= 0 ? tr('board.play_first')
+      : worldRank != null && boardTab === 1 ? tr('board.rank_week', { name: pseudo, rank: worldRank })
+        : worldRank != null ? tr('board.rank_all', { name: pseudo, rank: worldRank, n: best })
+          : boardTab === 1 ? tr('board.no_week') : tr('board.your_record', { n: best });
     canvas.drawText(ellipsize(info, greyTextPaint, right - left - w * 0.06), w / 2, footer, greyTextPaint);
   }
-  drawButton(canvas, new RectF(w * 0.3, bottom - w * 0.15, w * 0.7, bottom - w * 0.05), 'Retour', primaryBtnPaint, w * 0.045, () => { state = boardReturnState; });
+  drawButton(canvas, new RectF(w * 0.3, bottom - w * 0.15, w * 0.7, bottom - w * 0.05), tr('common.back'), primaryBtnPaint, w * 0.045, () => { state = boardReturnState; });
 }
 
 // ---------- Barre Perfect ----------
@@ -234,7 +241,7 @@ function drawSlider(canvas, r, label, value) {
   darkTextPaint.textAlign = Align.LEFT; darkTextPaint.textSize = w * 0.05;
   canvas.drawText(label, r.left, r.top - w * 0.05, darkTextPaint);
   darkTextPaint.textAlign = Align.RIGHT;
-  canvas.drawText(value <= 0 ? 'Coupé' : Math.floor(value * 100) + ' %', r.right, r.top - w * 0.05, darkTextPaint);
+  canvas.drawText(value <= 0 ? tr('settings.off') : Math.floor(value * 100) + ' %', r.right, r.top - w * 0.05, darkTextPaint);
   const bh = r.height();
   canvas.drawRoundRect(r, bh / 2, bh / 2, tabOffPaint);
   rect.set(r.left, r.top, r.left + r.width() * value, r.bottom);
@@ -246,22 +253,36 @@ function drawSlider(canvas, r, label, value) {
 }
 
 function drawSettings(canvas) {
-  const left = w * 0.06, right = w * 0.94, top = Math.max(insetTop, (insetTop + ub()) / 2 - w * 0.63), bottom = top + w * 1.26;
+  const left = w * 0.06, right = w * 0.94, top = Math.max(insetTop, (insetTop + ub()) / 2 - w * 0.705), bottom = top + w * 1.41;
   panel(canvas, left, top, right, bottom);
   darkTextPaint.textAlign = Align.CENTER; darkTextPaint.textSize = w * 0.07;
-  canvas.drawText('Réglages', w / 2, top + w * 0.11, darkTextPaint);
+  canvas.drawText(tr('settings.title'), w / 2, top + w * 0.11, darkTextPaint);
   const sl = left + w * 0.08, sr = right - w * 0.08, bh = w * 0.035;
   sfxSlider.set(sl, top + w * 0.3, sr, top + w * 0.3 + bh);
   musicSlider.set(sl, top + w * 0.55, sr, top + w * 0.55 + bh);
-  drawSlider(canvas, sfxSlider, 'Effets sonores', sounds.soundVolume);
-  drawSlider(canvas, musicSlider, 'Musique', sounds.musicVolume);
+  drawSlider(canvas, sfxSlider, tr('settings.sfx'), sounds.soundVolume);
+  drawSlider(canvas, musicSlider, tr('settings.music'), sounds.musicVolume);
   if (navigator.vibrate) {
-    drawButton(canvas, new RectF(sl, top + w * 0.68, sr, top + w * 0.79), '📳 Vibrations : ' + (profile.vibrationOn ? 'oui' : 'non'),
+    drawButton(canvas, new RectF(sl, top + w * 0.68, sr, top + w * 0.79), tr('settings.vibration', { v: yesNo(profile.vibrationOn) }),
       profile.vibrationOn ? tabOnPaint : tabOffPaint, w * 0.042, () => { profile.vibrationOn = !profile.vibrationOn; if (profile.vibrationOn) vibrate(15); });
   }
-  drawButton(canvas, new RectF(sl, top + w * 0.83, sr, top + w * 0.94), '📺 Fausses pubs : ' + (profile.fakeAdsOn ? 'oui' : 'non'),
+  drawButton(canvas, new RectF(sl, top + w * 0.83, sr, top + w * 0.94), tr('settings.fake_ads', { v: yesNo(profile.fakeAdsOn) }),
     profile.fakeAdsOn ? tabOnPaint : tabOffPaint, w * 0.042, () => { profile.fakeAdsOn = !profile.fakeAdsOn; });
+  // Langue : Auto (langue du navigateur), puis chaque langue disponible
+  const pref = profile.language;
+  const langLabel = pref === LANG_AUTO ? tr('settings.language_auto', { v: I18n.nameOf(I18n.lang) }) : I18n.nameOf(pref);
+  drawButton(canvas, new RectF(sl, top + w * 0.98, sr, top + w * 1.09), tr('settings.language', { v: langLabel }), tabOffPaint, w * 0.042, () => {
+    const choices = [LANG_AUTO, ...LANGUAGES];
+    profile.language = choices[(choices.indexOf(pref) + 1) % choices.length];
+    I18n.use(profile.language);
+  });
   drawButton(canvas, new RectF(w * 0.3, bottom - w * 0.17, w * 0.7, bottom - w * 0.06), 'OK', primaryBtnPaint, w * 0.05, () => { state = settingsReturnState; });
+}
+
+/** Date courte au format de la langue (clé « format.date » : dd/MM/yy, MM/dd/yy, dd.MM.yy…). */
+function fmtDate(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return tr('format.date').replace('dd', p(d.getDate())).replace('MM', p(d.getMonth() + 1)).replace('yy', String(d.getFullYear()).slice(2));
 }
 
 // ---------- Personnage ----------
@@ -269,7 +290,7 @@ function drawCustomize(canvas) {
   const left = w * 0.04, right = w * 0.96, top = insetTop + h * 0.03, bottom = ub() - h * 0.02;
   panel(canvas, left, top, right, bottom);
   darkTextPaint.textAlign = Align.CENTER; darkTextPaint.textSize = w * 0.07;
-  canvas.drawText('Ton personnage', w / 2, top + w * 0.1, darkTextPaint);
+  canvas.drawText(tr('custom.title'), w / 2, top + w * 0.1, darkTextPaint);
 
   // Mise en page adaptative : le bas (texte + OK) est fixe, la peinture juste au-dessus,
   // l'aperçu et les boutons rétrécissent si l'écran est court.
@@ -327,15 +348,15 @@ function drawCustomize(canvas) {
     }
     drawButton(canvas, r, label, bg, Math.min(w * 0.036, cellH * 0.42), () => {
       if (unlocked) { profile.select(custSlot, item.id); loadLook(); }
-      else if (item.isShop && profile.coins < item.price) { custMsg = `Il te manque ${item.price - profile.coins} 🪙 pour « ${item.label} »`; custMsgT = 2.5; }
+      else if (item.isShop && profile.coins < item.price) { custMsg = tr('custom.missing', { n: item.price - profile.coins, item: item.label }); custMsgT = 2.5; }
       else if (item.isShop && pendingBuy === item && custMsgT > 0) {
         if (profile.buy(item)) {
           profile.select(custSlot, item.id); loadLook();
-          custMsg = `🎉 « ${item.label} » acheté !`; custMsgT = 2.5; sounds.play('UNLOCK');
+          custMsg = tr('custom.bought', { item: item.label }); custMsgT = 2.5; sounds.play('UNLOCK');
         }
         pendingBuy = null;
-      } else if (item.isShop) { pendingBuy = item; custMsg = `Touche encore pour acheter « ${item.label} » (${item.price} 🪙)`; custMsgT = 3; }
-      else { custMsg = `🔒 Se débloque à ${item.cost} points cumulés`; custMsgT = 2.5; }
+      } else if (item.isShop) { pendingBuy = item; custMsg = tr('custom.confirm', { item: item.label, n: item.price }); custMsgT = 3; }
+      else { custMsg = tr('custom.locked', { n: item.cost }); custMsgT = 2.5; }
     });
   });
 
@@ -343,7 +364,7 @@ function drawCustomize(canvas) {
     // Juste sous les objets s'il y a la place, sinon calée au-dessus du texte du bas
     const ty = Math.min(gridTop + rows * step + w * 0.02, tintTop) + w * 0.035;
     darkTextPaint.textAlign = Align.LEFT; darkTextPaint.textSize = w * 0.036;
-    canvas.drawText("Peinture de l'objet", left + w * 0.05, ty, darkTextPaint);
+    canvas.drawText(tr('custom.paint'), left + w * 0.05, ty, darkTextPaint);
     const chosen = profile.selectedTint(custSlot);
     const tstep = (right - left - w * 0.1) / Skins.tints.length;
     const rad = Math.min(tstep * 0.4, w * 0.04);
@@ -360,16 +381,15 @@ function drawCustomize(canvas) {
       buttons.push({
         rect: new RectF(cx - tstep / 2, cy - rad - w * 0.02, cx + tstep / 2, cy + rad + w * 0.04),
         action: () => {
-          const lbl = t.label.toLowerCase();
           if (owned) { profile.selectTint(custSlot, t.id); loadLook(); }
-          else if (profile.coins < t.price) { custMsg = `Il te manque ${t.price - profile.coins} 🪙 pour la peinture ${lbl}`; custMsgT = 2.5; }
+          else if (profile.coins < t.price) { custMsg = tr('custom.paint_missing', { n: t.price - profile.coins, paint: t.label }); custMsgT = 2.5; }
           else if (pendingTint === t && custMsgT > 0) {
             if (profile.buyTint(t)) {
               profile.selectTint(custSlot, t.id); loadLook();
-              custMsg = `🎨 Peinture ${lbl} achetée ! Utilisable sur tous les objets`; custMsgT = 3; sounds.play('UNLOCK');
+              custMsg = tr('custom.paint_bought', { paint: t.label }); custMsgT = 3; sounds.play('UNLOCK');
             }
             pendingTint = null;
-          } else { pendingTint = t; custMsg = `Touche encore pour acheter la peinture ${lbl} (${t.price} 🪙)`; custMsgT = 3; }
+          } else { pendingTint = t; custMsg = tr('custom.paint_confirm', { paint: t.label, n: t.price }); custMsgT = 3; }
         },
       });
     });
@@ -378,8 +398,8 @@ function drawCustomize(canvas) {
   greyTextPaint.textSize = w * 0.038;
   const nx = Skins.nextUnlock(pts);
   const info = custMsgT > 0 ? custMsg
-    : lookSpecial !== Skins.NONE && custSlot !== Slot.CHARACTER && custSlot !== Slot.TRAIL ? 'Sans effet sur un perso spécial'
-    : nx ? `🪙 ${profile.coins} · ${pts} pts · prochain : ${nx.label} à ${nx.cost}` : `🪙 ${profile.coins} · ${pts} pts · tout est débloqué !`;
+    : lookSpecial !== Skins.NONE && custSlot !== Slot.CHARACTER && custSlot !== Slot.TRAIL ? tr('custom.special')
+    : nx ? tr('custom.info_next', { coins: profile.coins, pts, item: nx.label, n: nx.cost }) : tr('custom.info_all', { coins: profile.coins, pts });
   canvas.drawText(ellipsize(info, greyTextPaint, right - left - w * 0.06), w / 2, footY, greyTextPaint);
   drawButton(canvas, new RectF(w * 0.3, bottom - w * 0.15, w * 0.7, bottom - w * 0.05), 'OK', primaryBtnPaint, w * 0.05, () => closeCustomize());
 }
@@ -389,32 +409,32 @@ function drawGameOver(canvas) {
   canvas.drawRect(0, 0, w, h, overlayPaint);
   const y0 = h * 0.34;
   if (gameOverReason) { textPaint.textSize = w * 0.05; canvas.drawText(gameOverReason, w / 2, y0 - w * 0.14, textPaint); }
-  textPaint.textSize = w * 0.12; canvas.drawText('Perdu !', w / 2, y0, textPaint);
+  textPaint.textSize = w * 0.12; canvas.drawText(tr('over.title'), w / 2, y0, textPaint);
   textPaint.textSize = w * 0.07;
-  canvas.drawText('Score : ' + score, w / 2, y0 + w * 0.14, textPaint);
-  canvas.drawText(newBest ? 'Nouveau record !' : 'Record : ' + best, w / 2, y0 + w * 0.24, textPaint);
+  canvas.drawText(tr('common.score', { n: score }), w / 2, y0 + w * 0.14, textPaint);
+  canvas.drawText(newBest ? tr('over.new_record') : tr('common.record', { n: best }), w / 2, y0 + w * 0.24, textPaint);
   if (coinsThisRun > 0) {
     textPaint.textSize = w * 0.045;
-    canvas.drawText(`+${coinsThisRun} 🪙 ramassées (total ${profile.coins})`, w / 2, y0 + w * 0.31, textPaint);
+    canvas.drawText(tr('over.coins', { n: coinsThisRun, total: profile.coins }), w / 2, y0 + w * 0.31, textPaint);
   }
   if (gameOverTime > 0.6) {
     const bh = w * 0.13, sh = w * 0.11;
     let y = y0 + w * 0.36;
-    drawButton(canvas, new RectF(w * 0.2, y, w * 0.8, y + bh), 'Rejouer', primaryBtnPaint, w * 0.06, () => replay());
+    drawButton(canvas, new RectF(w * 0.2, y, w * 0.8, y + bh), tr('over.replay'), primaryBtnPaint, w * 0.06, () => replay());
     y += bh + w * 0.04;
-    drawButton(canvas, new RectF(w * 0.1, y, w * 0.49, y + sh), '🏆 Classement', secondaryBtnPaint, w * 0.042, () => openBoard(1));
-    drawButton(canvas, new RectF(w * 0.51, y, w * 0.9, y + sh), '📋 Missions', secondaryBtnPaint, w * 0.042, () => openMissions());
+    drawButton(canvas, new RectF(w * 0.1, y, w * 0.49, y + sh), tr('menu.board'), secondaryBtnPaint, w * 0.042, () => openBoard(1));
+    drawButton(canvas, new RectF(w * 0.51, y, w * 0.9, y + sh), tr('menu.missions'), secondaryBtnPaint, w * 0.042, () => openMissions());
     y += sh + w * 0.04;
-    drawButton(canvas, new RectF(w * 0.1, y, w * 0.49, y + sh), '✎ ' + (profile.pseudo || 'Pseudo'), chipPaint, w * 0.04, () => askPseudo(false));
-    drawButton(canvas, new RectF(w * 0.51, y, w * 0.9, y + sh), '🎨 Personnage', chipPaint, w * 0.04, () => openCustomize());
+    drawButton(canvas, new RectF(w * 0.1, y, w * 0.49, y + sh), '✎ ' + (profile.pseudo || tr('menu.pseudo')), chipPaint, w * 0.04, () => askPseudo(false));
+    drawButton(canvas, new RectF(w * 0.51, y, w * 0.9, y + sh), tr('menu.character'), chipPaint, w * 0.04, () => openCustomize());
     y += sh + w * 0.08;
     textPaint.textSize = w * 0.042;
     if (unlockedLabels.length) {
-      canvas.drawText(ellipsize('🎁 Débloqué : ' + unlockedLabels.join(', '), textPaint, w * 0.92), w / 2, y, textPaint);
+      canvas.drawText(ellipsize(tr('over.unlocked', { items: unlockedLabels.join(', ') }), textPaint, w * 0.92), w / 2, y, textPaint);
       y += w * 0.065;
     }
     const pts = profile.totalPoints, nx = Skins.nextUnlock(pts);
-    if (nx) { textPaint.textSize = w * 0.036; canvas.drawText(`Prochain : ${nx.label} (encore ${nx.cost - pts} pts)`, w / 2, y, textPaint); }
+    if (nx) { textPaint.textSize = w * 0.036; canvas.drawText(tr('over.next', { item: nx.label, n: nx.cost - pts }), w / 2, y, textPaint); }
   }
 }
 
@@ -422,15 +442,15 @@ function drawGameOver(canvas) {
 function drawPause(canvas) {
   canvas.drawRect(0, 0, w, h, overlayPaint);
   const y0 = h * 0.3;
-  textPaint.textSize = w * 0.12; canvas.drawText('Pause', w / 2, y0, textPaint);
-  textPaint.textSize = w * 0.045; canvas.drawText('Score : ' + score, w / 2, y0 + w * 0.09, textPaint);
+  textPaint.textSize = w * 0.12; canvas.drawText(tr('pause.title'), w / 2, y0, textPaint);
+  textPaint.textSize = w * 0.045; canvas.drawText(tr('common.score', { n: score }), w / 2, y0 + w * 0.09, textPaint);
   const bh = w * 0.13, sh = w * 0.11;
   let y = y0 + w * 0.17;
-  drawButton(canvas, new RectF(w * 0.2, y, w * 0.8, y + bh), '▶ Reprendre', primaryBtnPaint, w * 0.06, () => resumeGame());
+  drawButton(canvas, new RectF(w * 0.2, y, w * 0.8, y + bh), tr('pause.resume'), primaryBtnPaint, w * 0.06, () => resumeGame());
   y += bh + w * 0.04;
-  drawButton(canvas, new RectF(w * 0.2, y, w * 0.8, y + sh), '🔊 Son', secondaryBtnPaint, w * 0.045, () => openSettings());
+  drawButton(canvas, new RectF(w * 0.2, y, w * 0.8, y + sh), '🔊 ' + tr('menu.sound'), secondaryBtnPaint, w * 0.045, () => openSettings());
   y += sh + w * 0.03;
-  drawButton(canvas, new RectF(w * 0.2, y, w * 0.8, y + sh), 'Abandonner', chipPaint, w * 0.045, () => endGame('Partie abandonnée'));
+  drawButton(canvas, new RectF(w * 0.2, y, w * 0.8, y + sh), tr('pause.quit'), chipPaint, w * 0.045, () => endGame(tr('pause.quit_reason')));
 }
 
 // ---------- Missions ----------
@@ -438,22 +458,23 @@ function drawMissions(canvas) {
   const left = w * 0.05, right = w * 0.95, top = insetTop + h * 0.06, bottom = ub() - h * 0.04;
   panel(canvas, left, top, right, bottom);
   darkTextPaint.textAlign = Align.CENTER; darkTextPaint.textSize = w * 0.07;
-  canvas.drawText('Missions du jour', w / 2, top + w * 0.11, darkTextPaint);
+  canvas.drawText(tr('missions.title'), w / 2, top + w * 0.11, darkTextPaint);
   greyTextPaint.textSize = w * 0.04;
-  canvas.drawText(`🪙 ${profile.coins} pièces · nouvelles missions chaque jour`, w / 2, top + w * 0.18, greyTextPaint);
+  canvas.drawText(tr('missions.subtitle', { n: profile.coins }), w / 2, top + w * 0.18, greyTextPaint);
   let y = top + w * 0.26;
   const cardH = w * 0.2;
   missions.list().forEach((m, i) => {
     if (m.challenge) {
       darkTextPaint.textAlign = Align.LEFT; darkTextPaint.textSize = w * 0.045;
-      canvas.drawText('🏅 Défi du jour', left + w * 0.05, y + w * 0.06, darkTextPaint);
+      canvas.drawText(tr('missions.challenge'), left + w * 0.05, y + w * 0.06, darkTextPaint);
       y += w * 0.09;
     }
     const done = missions.isDone(i), p = missions.progress(i);
     rect.set(left + w * 0.04, y, right - w * 0.04, y + cardH);
     canvas.drawRoundRect(rect, w * 0.03, w * 0.03, done ? highlightPaint : tabOffPaint);
     darkTextPaint.textAlign = Align.LEFT; darkTextPaint.textSize = w * 0.042;
-    canvas.drawText(ellipsize((done ? '✅ ' : '') + m.label, darkTextPaint, right - left - w * 0.3), left + w * 0.08, y + w * 0.075, darkTextPaint);
+    canvas.drawText(fitText((done ? '✅ ' : '') + m.label, darkTextPaint, right - left - w * 0.3), left + w * 0.08, y + w * 0.075, darkTextPaint);
+    darkTextPaint.textSize = w * 0.042;
     darkTextPaint.textAlign = Align.RIGHT;
     canvas.drawText(`+${m.reward} 🪙`, right - w * 0.08, y + w * 0.075, darkTextPaint);
     const bl = left + w * 0.08, br = right - w * 0.08, by = y + w * 0.12, bh = w * 0.035;
@@ -465,7 +486,7 @@ function drawMissions(canvas) {
     y += cardH + w * 0.03;
   });
   greyTextPaint.textSize = w * 0.038;
-  canvas.drawText(missions.allMissionsDone() ? '🎉 Les 3 missions sont terminées !' : `Termine les 3 missions : +${missions.ALL_DONE_REWARD} 🪙 en plus`,
+  canvas.drawText(missions.allMissionsDone() ? tr('missions.all_done') : tr('missions.all_bonus', { n: missions.ALL_DONE_REWARD }),
     w / 2, bottom - w * 0.2, greyTextPaint);
   drawButton(canvas, new RectF(w * 0.3, bottom - w * 0.15, w * 0.7, bottom - w * 0.05), 'OK', primaryBtnPaint, w * 0.05, () => { state = missionsReturnState; });
 }
