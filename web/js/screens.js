@@ -243,16 +243,29 @@ function drawCustomize(canvas) {
   panel(canvas, left, top, right, bottom);
   darkTextPaint.textAlign = Align.CENTER; darkTextPaint.textSize = w * 0.07;
   canvas.drawText('Ton personnage', w / 2, top + w * 0.1, darkTextPaint);
-  const pcx = w / 2, pcy = top + w * 0.42;
-  rect.set(pcx - k * 0.75, pcy - k * 0.3, pcx + k * 0.75, pcy + k * 0.3);
+
+  // Mise en page adaptative : le bas (texte + OK) est fixe, la peinture juste au-dessus,
+  // l'aperçu et les boutons rétrécissent si l'écran est court.
+  const footY = bottom - w * 0.2;
+  const tintable = Skins.tintable.has(custSlot);
+  const tintH = w * 0.17;
+  const tintTop = footY - w * 0.05 - tintH;
+  const tabH = w * 0.085, tabsH = 2 * tabH + w * 0.015;
+  const rowsMax = 6;   // l'onglet Couleur a le plus d'éléments
+  const idealGrid = rowsMax * w * 0.104;
+  const avail = (footY - w * 0.05 - tintH) - (top + w * 0.14) - tabsH - w * 0.05 - idealGrid;
+  const previewH = clamp(avail, w * 0.2, w * 0.36);
+  const pScale = 2 * clamp(previewH / (w * 0.36), 0.6, 1);
+  const pcx = w / 2, pcy = top + w * 0.13 + previewH * 0.8;
+  rect.set(pcx - k * 0.375 * pScale, pcy - k * 0.15 * pScale, pcx + k * 0.375 * pScale, pcy + k * 0.15 * pScale);
   canvas.drawOval(rect, shadowPaint);
   canvas.save();
   canvas.translate(pcx, pcy);
-  canvas.scale(2, 2);
+  canvas.scale(pScale, pScale);
   drawCharacter(canvas, 0, 0, 0, 1, 1, Math.floor(time / 2.5) % 2 === 0, false, false);
   canvas.restore();
 
-  const tabTop = pcy + w * 0.1, tabH = w * 0.085;
+  const tabTop = top + w * 0.13 + previewH + w * 0.02;
   SLOTS.forEach((slot, i) => {
     const row = i < 4 ? 0 : 1, inRow = row === 0 ? 4 : SLOTS.length - 4, col = row === 0 ? i : i - 4;
     const cw = (right - left - w * 0.04) / inRow;
@@ -263,10 +276,14 @@ function drawCustomize(canvas) {
 
   const pts = profile.totalPoints;
   const selected = currentLook(custSlot);
-  const gridTop = tabTop + 2 * tabH + w * 0.05, cellH = w * 0.088, cellW = (right - left - w * 0.08) / 2;
+  const gridTop = tabTop + tabsH + w * 0.035;
+  const rows = Math.ceil(Skins.bySlot(custSlot).length / 2);
+  const gridBottom = (tintable ? tintTop : footY - w * 0.05) - w * 0.01;
+  const step = Math.min(w * 0.104, (gridBottom - gridTop) / rows);
+  const cellH = step * 0.85, cellW = (right - left - w * 0.08) / 2;
   Skins.bySlot(custSlot).forEach((item, i) => {
     const col = i % 2, row = Math.floor(i / 2);
-    const x0 = left + w * 0.04 + col * cellW, y0 = gridTop + row * (cellH + w * 0.016);
+    const x0 = left + w * 0.04 + col * cellW, y0 = gridTop + row * step;
     const r = new RectF(x0 + w * 0.01, y0, x0 + cellW - w * 0.01, y0 + cellH);
     const unlocked = profile.available(item);
     const isSel = item.id === selected;
@@ -281,7 +298,7 @@ function drawCustomize(canvas) {
       const rr = new RectF(r.left - w * 0.008, r.top - w * 0.008, r.right + w * 0.008, r.bottom + w * 0.008);
       canvas.drawRoundRect(rr, rr.height() / 2, rr.height() / 2, bubbleStroke);
     }
-    drawButton(canvas, r, label, bg, w * 0.036, () => {
+    drawButton(canvas, r, label, bg, Math.min(w * 0.036, cellH * 0.42), () => {
       if (unlocked) { profile.select(custSlot, item.id); loadLook(); }
       else if (item.isShop && profile.coins < item.price) { custMsg = `Il te manque ${item.price - profile.coins} 🪙 pour « ${item.label} »`; custMsgT = 2.5; }
       else if (item.isShop && pendingBuy === item && custMsgT > 0) {
@@ -295,16 +312,16 @@ function drawCustomize(canvas) {
     });
   });
 
-  if (Skins.tintable.has(custSlot)) {
-    const rows = Math.ceil(Skins.bySlot(custSlot).length / 2);
-    const ty = gridTop + rows * (cellH + w * 0.016) + w * 0.035;
+  if (tintable) {
+    // Juste sous les objets s'il y a la place, sinon calée au-dessus du texte du bas
+    const ty = Math.min(gridTop + rows * step + w * 0.02, tintTop) + w * 0.035;
     darkTextPaint.textAlign = Align.LEFT; darkTextPaint.textSize = w * 0.036;
     canvas.drawText("Peinture de l'objet", left + w * 0.05, ty, darkTextPaint);
     const chosen = profile.selectedTint(custSlot);
-    const step = (right - left - w * 0.1) / Skins.tints.length;
-    const rad = Math.min(step * 0.4, w * 0.04);
+    const tstep = (right - left - w * 0.1) / Skins.tints.length;
+    const rad = Math.min(tstep * 0.4, w * 0.04);
     Skins.tints.forEach((t, i) => {
-      const cx = left + w * 0.05 + step * (i + 0.5), cy = ty + w * 0.065;
+      const cx = left + w * 0.05 + tstep * (i + 0.5), cy = ty + w * 0.065;
       const owned = profile.ownsTint(t);
       if (t.id === Skins.ORIGINAL) {
         itemPaint.color = Color.parseColor('#E3E7EE'); canvas.drawCircle(cx, cy, rad, itemPaint);
@@ -314,7 +331,7 @@ function drawCustomize(canvas) {
       if (t.id === chosen) { bubbleStroke.strokeWidth = w * 0.008; canvas.drawCircle(cx, cy, rad + w * 0.01, bubbleStroke); }
       if (!owned) { greyTextPaint.textSize = w * 0.026; canvas.drawText(String(t.price), cx, cy + rad + w * 0.035, greyTextPaint); }
       buttons.push({
-        rect: new RectF(cx - step / 2, cy - rad - w * 0.02, cx + step / 2, cy + rad + w * 0.04),
+        rect: new RectF(cx - tstep / 2, cy - rad - w * 0.02, cx + tstep / 2, cy + rad + w * 0.04),
         action: () => {
           const lbl = t.label.toLowerCase();
           if (owned) { profile.selectTint(custSlot, t.id); loadLook(); }
@@ -332,7 +349,6 @@ function drawCustomize(canvas) {
   }
 
   greyTextPaint.textSize = w * 0.038;
-  const footY = bottom - w * 0.2;
   const nx = Skins.nextUnlock(pts);
   const info = custMsgT > 0 ? custMsg : nx ? `🪙 ${profile.coins} · ${pts} pts · prochain : ${nx.label} à ${nx.cost}` : `🪙 ${profile.coins} · ${pts} pts · tout est débloqué !`;
   canvas.drawText(ellipsize(info, greyTextPaint, right - left - w * 0.06), w / 2, footY, greyTextPaint);

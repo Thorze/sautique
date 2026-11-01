@@ -362,21 +362,33 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
     darkTextPaint.textSize = w * 0.07f
     canvas.drawText("Ton personnage", w / 2f, top + w * 0.1f, darkTextPaint)
 
+    // Mise en page adaptative : le bas (texte + OK) est fixe, la peinture juste au-dessus,
+    // l'aperçu et les boutons rétrécissent si l'écran est court.
+    val footY = bottom - w * 0.2f
+    val tintable = custSlot in Skins.tintable
+    val tintH = w * 0.17f
+    val tintTop = footY - w * 0.05f - tintH
+    val tabH = w * 0.085f
+    val tabsH = 2 * tabH + w * 0.015f
+    val idealGrid = 6 * w * 0.104f      // l'onglet Couleur a le plus d'éléments
+    val avail = (footY - w * 0.05f - tintH) - (top + w * 0.14f) - tabsH - w * 0.05f - idealGrid
+    val previewH = avail.coerceIn(w * 0.2f, w * 0.36f)
+    val pScale = 2f * (previewH / (w * 0.36f)).coerceIn(0.6f, 1f)
+
     // Aperçu (regarde à droite puis à gauche)
     val pcx = w / 2f
-    val pcy = top + w * 0.42f
-    rect.set(pcx - k * 0.75f, pcy - k * 0.3f, pcx + k * 0.75f, pcy + k * 0.3f)
+    val pcy = top + w * 0.13f + previewH * 0.8f
+    rect.set(pcx - k * 0.375f * pScale, pcy - k * 0.15f * pScale, pcx + k * 0.375f * pScale, pcy + k * 0.15f * pScale)
     canvas.drawOval(rect, shadowPaint)
     canvas.save()
     canvas.translate(pcx, pcy)
-    canvas.scale(2f, 2f)
+    canvas.scale(pScale, pScale)
     val dirX = (time / 2.5f).toInt() % 2 == 0
     drawCharacter(canvas, 0f, 0f, 0f, 1f, 1f, dirX, scared = false, front = false)
     canvas.restore()
 
     // Onglets
-    val tabTop = pcy + w * 0.1f
-    val tabH = w * 0.085f
+    val tabTop = top + w * 0.13f + previewH + w * 0.02f
     val slots = Skins.Slot.values()
     // Onglets sur deux lignes (4 + 3)
     slots.forEachIndexed { i, slot ->
@@ -395,14 +407,17 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
     // Eléments de l'onglet
     val pts = profile.totalPoints
     val selected = currentLook(custSlot)
-    val gridTop = tabTop + 2 * tabH + w * 0.05f
-    val cellH = w * 0.088f
+    val gridTop = tabTop + tabsH + w * 0.035f
+    val rows = (Skins.bySlot(custSlot).size + 1) / 2
+    val gridBottom = (if (tintable) tintTop else footY - w * 0.05f) - w * 0.01f
+    val step = min(w * 0.104f, (gridBottom - gridTop) / rows)
+    val cellH = step * 0.85f
     val cellW = (right - left - w * 0.08f) / 2f
     Skins.bySlot(custSlot).forEachIndexed { i, item ->
         val col = i % 2
         val row = i / 2
         val x0 = left + w * 0.04f + col * cellW
-        val y0 = gridTop + row * (cellH + w * 0.016f)
+        val y0 = gridTop + row * step
         val r = RectF(x0 + w * 0.01f, y0, x0 + cellW - w * 0.01f, y0 + cellH)
         val unlocked = profile.available(item)
         val isSel = item.id == selected
@@ -424,7 +439,7 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
             val rr = RectF(r.left - w * 0.008f, r.top - w * 0.008f, r.right + w * 0.008f, r.bottom + w * 0.008f)
             canvas.drawRoundRect(rr, rr.height() / 2f, rr.height() / 2f, bubbleStroke)
         }
-        drawButton(canvas, r, label, bg, w * 0.036f) {
+        drawButton(canvas, r, label, bg, min(w * 0.036f, cellH * 0.42f)) {
             when {
                 unlocked -> {
                     profile.select(custSlot, item.id)
@@ -459,19 +474,18 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
     }
 
     // Peintures pour l'objet de cet onglet
-    if (custSlot in Skins.tintable) {
-        val n = Skins.bySlot(custSlot).size
-        val rows = (n + 1) / 2
-        val ty = gridTop + rows * (cellH + w * 0.016f) + w * 0.035f
+    if (tintable) {
+        // Juste sous les objets s'il y a la place, sinon calée au-dessus du texte du bas
+        val ty = min(gridTop + rows * step + w * 0.02f, tintTop) + w * 0.035f
         darkTextPaint.textAlign = Paint.Align.LEFT
         darkTextPaint.textSize = w * 0.036f
         canvas.drawText("Peinture de l'objet", left + w * 0.05f, ty, darkTextPaint)
         val chosen = profile.selectedTint(custSlot)
         val count = Skins.tints.size
-        val step = (right - left - w * 0.1f) / count
-        val rad = min(step * 0.4f, w * 0.04f)
+        val tstep = (right - left - w * 0.1f) / count
+        val rad = min(tstep * 0.4f, w * 0.04f)
         Skins.tints.forEachIndexed { i, t ->
-            val cx = left + w * 0.05f + step * (i + 0.5f)
+            val cx = left + w * 0.05f + tstep * (i + 0.5f)
             val cy = ty + w * 0.065f
             val owned = profile.ownsTint(t)
             if (t.id == Skins.ORIGINAL) {
@@ -491,7 +505,7 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
                 greyTextPaint.textSize = w * 0.026f
                 canvas.drawText("${t.price}", cx, cy + rad + w * 0.035f, greyTextPaint)
             }
-            val hit = RectF(cx - step / 2f, cy - rad - w * 0.02f, cx + step / 2f, cy + rad + w * 0.04f)
+            val hit = RectF(cx - tstep / 2f, cy - rad - w * 0.02f, cx + tstep / 2f, cy + rad + w * 0.04f)
             buttons.add(Button(hit) {
                 when {
                     owned -> {
@@ -524,7 +538,6 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
 
     // Bas : points cumulés et validation
     greyTextPaint.textSize = w * 0.038f
-    val footY = bottom - w * 0.2f
     val nextItem = Skins.nextUnlock(pts)
     val info = when {
         custMsgT > 0f -> custMsg
