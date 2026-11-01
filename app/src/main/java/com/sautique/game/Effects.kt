@@ -107,8 +107,11 @@ internal fun GameView.drawParticles(canvas: Canvas) {
             Particle.BUBBLE -> {
                 accStroke.color = p.color
                 accStroke.alpha = accPaint.alpha
-                accStroke.strokeWidth = k * 0.015f
-                canvas.drawCircle(x, y, p.size * (1.6f - 0.6f * a), accStroke)
+                accStroke.strokeWidth = k * 0.03f
+                val r = p.size * (1.6f - 0.6f * a)
+                accPaint.color = Color.argb((90 * a).toInt(), 200, 230, 255)
+                canvas.drawCircle(x, y, r, accPaint)
+                canvas.drawCircle(x, y, r, accStroke)
                 accStroke.alpha = 255
             }
             else -> canvas.drawCircle(x, y, p.size * (1.5f - 0.5f * a), accPaint)
@@ -206,26 +209,20 @@ internal fun GameView.emitTrail(dt: Float) {
     if (lookTrail == Skins.NONE) return
     trailTimer -= dt
     if (trailTimer > 0f) return
-    trailTimer = 0.035f
+    trailTimer = if (lookTrail == "arcenciel") 0.02f else 0.05f
     val x = sx(px, pz) + camX + (Random.nextFloat() - 0.5f) * k * 0.3f
     val y = sy(px, py + 0.25f, pz) + camY + (Random.nextFloat() - 0.5f) * k * 0.3f
     val drift = (Random.nextFloat() - 0.5f) * k * 0.4f
     when (lookTrail) {
-        "etoiles" -> particles += Particle(x, y, drift, k * 0.3f, 0.6f, 0.6f, k * 0.07f, Color.parseColor("#FFD54F"), 0f, Particle.STAR)
-        "bulles" -> particles += Particle(x, y, drift, -k * 0.5f, 0.8f, 0.8f, k * 0.06f, Color.argb(220, 160, 220, 255), 0f, Particle.BUBBLE)
-        "notes" -> {
-            if (Random.nextInt(3) == 0) {
-                particles += Particle(x, y, drift, -k * 0.6f, 0.9f, 0.9f, k * 0.09f,
-                    listOf("#3F8EFC", "#8E5CD9", "#2E3A59")[Random.nextInt(3)].let { Color.parseColor(it) }, 0f, Particle.NOTE)
-            }
-        }
-        "coeurs" -> if (Random.nextInt(2) == 0) {
-            particles += Particle(x, y, drift, -k * 0.4f, 0.8f, 0.8f, k * 0.06f, Color.parseColor("#FF4D8D"), 0f, Particle.HEART)
-        }
+        "etoiles" -> particles += Particle(x, y, drift, k * 0.4f, 0.8f, 0.8f, k * 0.16f, Color.parseColor("#FFB300"), 0f, Particle.STAR)
+        "bulles" -> particles += Particle(x, y, drift, -k * 0.6f, 0.9f, 0.9f, k * 0.11f, Color.parseColor("#3F8EFC"), 0f, Particle.BUBBLE)
+        "notes" -> particles += Particle(x, y, drift, -k * 0.7f, 0.9f, 0.9f, k * 0.13f,
+            listOf("#3F8EFC", "#8E5CD9", "#2E3A59", "#E53950")[Random.nextInt(4)].let { Color.parseColor(it) }, 0f, Particle.NOTE)
+        "coeurs" -> particles += Particle(x, y, drift, -k * 0.5f, 0.9f, 0.9f, k * 0.12f, Color.parseColor("#FF4D8D"), 0f, Particle.HEART)
         "arcenciel" -> {
-            val hue = (time * 360f) % 360f
-            particles += Particle(sx(px, pz) + camX, sy(px, py + 0.25f, pz) + camY, 0f, 0f, 0.5f, 0.5f, k * 0.09f,
-                Color.HSVToColor(floatArrayOf(hue, 0.75f, 1f)), 0f, Particle.CIRCLE)
+            val hue = (time * 400f) % 360f
+            particles += Particle(sx(px, pz) + camX, sy(px, py + 0.25f, pz) + camY, 0f, 0f, 0.7f, 0.7f, k * 0.17f,
+                Color.HSVToColor(floatArrayOf(hue, 0.8f, 1f)), 0f, Particle.CIRCLE)
         }
     }
 }

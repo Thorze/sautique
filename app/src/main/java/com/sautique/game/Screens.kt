@@ -458,6 +458,70 @@ internal fun GameView.drawCustomize(canvas: Canvas) {
         }
     }
 
+    // Peintures pour l'objet de cet onglet
+    if (custSlot in Skins.tintable) {
+        val n = Skins.bySlot(custSlot).size
+        val rows = (n + 1) / 2
+        val ty = gridTop + rows * (cellH + w * 0.016f) + w * 0.035f
+        darkTextPaint.textAlign = Paint.Align.LEFT
+        darkTextPaint.textSize = w * 0.036f
+        canvas.drawText("Peinture de l'objet", left + w * 0.05f, ty, darkTextPaint)
+        val chosen = profile.selectedTint(custSlot)
+        val count = Skins.tints.size
+        val step = (right - left - w * 0.1f) / count
+        val rad = min(step * 0.4f, w * 0.04f)
+        Skins.tints.forEachIndexed { i, t ->
+            val cx = left + w * 0.05f + step * (i + 0.5f)
+            val cy = ty + w * 0.065f
+            val owned = profile.ownsTint(t)
+            if (t.id == Skins.ORIGINAL) {
+                itemPaint.color = Color.parseColor("#E3E7EE")
+                canvas.drawCircle(cx, cy, rad, itemPaint)
+                bubbleStroke.strokeWidth = w * 0.006f
+                canvas.drawLine(cx - rad * 0.6f, cy + rad * 0.6f, cx + rad * 0.6f, cy - rad * 0.6f, bubbleStroke)
+            } else {
+                itemPaint.color = t.color
+                canvas.drawCircle(cx, cy, rad, itemPaint)
+            }
+            if (t.id == chosen) {
+                bubbleStroke.strokeWidth = w * 0.008f
+                canvas.drawCircle(cx, cy, rad + w * 0.01f, bubbleStroke)
+            }
+            if (!owned) {
+                greyTextPaint.textSize = w * 0.026f
+                canvas.drawText("${t.price}", cx, cy + rad + w * 0.035f, greyTextPaint)
+            }
+            val hit = RectF(cx - step / 2f, cy - rad - w * 0.02f, cx + step / 2f, cy + rad + w * 0.04f)
+            buttons.add(Button(hit) {
+                when {
+                    owned -> {
+                        profile.selectTint(custSlot, t.id)
+                        loadLook()
+                    }
+                    profile.coins < t.price -> {
+                        custMsg = "Il te manque ${t.price - profile.coins} 🪙 pour la peinture ${t.label.lowercase()}"
+                        custMsgT = 2.5f
+                    }
+                    pendingTint === t && custMsgT > 0f -> {
+                        if (profile.buyTint(t)) {
+                            profile.selectTint(custSlot, t.id)
+                            loadLook()
+                            custMsg = "🎨 Peinture ${t.label.lowercase()} achetée ! Utilisable sur tous les objets"
+                            custMsgT = 3f
+                            sounds.play(Sounds.Sfx.UNLOCK)
+                        }
+                        pendingTint = null
+                    }
+                    else -> {
+                        pendingTint = t
+                        custMsg = "Touche encore pour acheter la peinture ${t.label.lowercase()} (${t.price} 🪙)"
+                        custMsgT = 3f
+                    }
+                }
+            })
+        }
+    }
+
     // Bas : points cumulés et validation
     greyTextPaint.textSize = w * 0.038f
     val footY = bottom - w * 0.2f

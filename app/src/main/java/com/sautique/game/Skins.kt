@@ -121,6 +121,32 @@ object Skins {
         "trail:bulles" to 140,
     )
 
+    /**
+     * Peintures pour les objets (lunettes, chapeau, chaussures, dos) : achetées une fois avec les
+     * pièces, puis utilisables sur n'importe quel objet. « Origine » = couleurs d'origine.
+     */
+    class Tint(val id: String, val label: String, val color: Int, val price: Int)
+
+    const val ORIGINAL = "origine"
+
+    val tints = listOf(
+        Tint(ORIGINAL, "Origine", 0, 0),
+        Tint("rouge", "Rouge", 0xFFE53950.toInt(), 60),
+        Tint("bleu", "Bleu", 0xFF3F8EFC.toInt(), 60),
+        Tint("vert", "Vert", 0xFF3DBE6E.toInt(), 60),
+        Tint("jaune", "Jaune", 0xFFFFC93C.toInt(), 80),
+        Tint("rose", "Rose", 0xFFFF6FB0.toInt(), 80),
+        Tint("violet", "Violet", 0xFF8E5CD9.toInt(), 100),
+        Tint("blanc", "Blanc", 0xFFF4F4F4.toInt(), 120),
+        Tint("noir", "Noir", 0xFF26262E.toInt(), 120),
+        Tint("or", "Or", 0xFFE0B03C.toInt(), 250)
+    )
+
+    /** Emplacements qui acceptent une peinture. */
+    val tintable = setOf(Slot.GLASSES, Slot.HAT, Slot.SHOES, Slot.BACK)
+
+    fun tint(id: String) = tints.firstOrNull { it.id == id } ?: tints.first()
+
     fun bySlot(slot: Slot) = items.filter { it.slot == slot }
 
     fun default(slot: Slot) = bySlot(slot).first().id

@@ -87,6 +87,23 @@ class LocalScores(context: Context) : KeyValueStore {
         prefs.edit().putStringSet("owned", owned).putBoolean("costs_v2", true).apply()
     }
 
+    // ---------- Peintures des objets ----------
+
+    fun ownsTint(t: Skins.Tint) = t.price == 0 || prefs.getStringSet("owned", emptySet())!!.contains("tint:" + t.id)
+
+    fun buyTint(t: Skins.Tint): Boolean {
+        if (ownsTint(t) || coins < t.price) return false
+        coins -= t.price
+        val owned = HashSet(prefs.getStringSet("owned", emptySet())!!)
+        owned += "tint:" + t.id
+        prefs.edit().putStringSet("owned", owned).apply()
+        return true
+    }
+
+    fun selectedTint(slot: Skins.Slot): String = prefs.getString("tint_" + slot.key, null) ?: Skins.ORIGINAL
+
+    fun selectTint(slot: Skins.Slot, id: String) = prefs.edit().putString("tint_" + slot.key, id).apply()
+
     // ---------- Réglages ----------
 
     var vibrationOn: Boolean

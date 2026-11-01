@@ -205,28 +205,28 @@ internal fun GameView.drawCharacter(
             tmpPath.lineTo(a * k * 1.15f + bx * 1.4f - fdx * flutter, botY + (if (inAir) -k * 0.05f else k * 0.04f))
             tmpPath.lineTo(-a * k * 1.15f + bx * 1.4f - fdx * flutter, botY + (if (inAir) -k * 0.05f else k * 0.04f))
             tmpPath.close()
-            accPaint.color = Color.parseColor("#C62839")
+            accPaint.color = tinted(Skins.Slot.BACK, Color.parseColor("#C62839"))
             canvas.drawPath(tmpPath, accPaint)
         }
         "sac" -> {
-            accPaint.color = Color.parseColor("#7A5230")
+            accPaint.color = tinted(Skins.Slot.BACK, Color.parseColor("#7A5230"))
             rect.set(bx - a * k * 0.55f, midY - k * 0.2f, bx + a * k * 0.55f, midY + k * 0.17f)
             canvas.drawRoundRect(rect, k * 0.08f, k * 0.08f, accPaint)
-            accPaint.color = Color.parseColor("#5C3C22")
+            accPaint.color = tinted(Skins.Slot.BACK, Color.parseColor("#5C3C22"), 0.75f)
             rect.set(bx - a * k * 0.4f, midY + k * 0.02f, bx + a * k * 0.4f, midY + k * 0.13f)
             canvas.drawRoundRect(rect, k * 0.04f, k * 0.04f, accPaint)
         }
         "papillon" -> {
             val flap = sin(time * (if (inAir) 18f else 4f)) * 15f
             for (side in intArrayOf(-1, 1)) {
-                wing(side, Color.parseColor("#FF8FC7"), k * 0.42f, flap)
-                wing(side, Color.parseColor("#9C6BFF"), k * 0.26f, flap - 30f)
+                wing(side, tinted(Skins.Slot.BACK, Color.parseColor("#FF8FC7")), k * 0.42f, flap)
+                wing(side, tinted(Skins.Slot.BACK, Color.parseColor("#9C6BFF"), 0.7f), k * 0.26f, flap - 30f)
             }
         }
         "jetpack" -> {
             for (dx in floatArrayOf(-1f, 1f)) {
                 val cx = bx + dx * a * k * 0.38f
-                accPaint.color = Color.parseColor("#9AA3B5")
+                accPaint.color = tinted(Skins.Slot.BACK, Color.parseColor("#9AA3B5"))
                 rect.set(cx - k * 0.08f, midY - k * 0.22f, cx + k * 0.08f, midY + k * 0.16f)
                 canvas.drawRoundRect(rect, k * 0.06f, k * 0.06f, accPaint)
                 accPaint.color = Color.parseColor("#E53950")
@@ -264,7 +264,7 @@ internal fun GameView.drawCharacter(
             val sw = k * 0.12f
             val sh = k * 0.065f
             if (lookShoes == "fusees") {
-                accPaint.color = Color.parseColor("#9AA3B5")
+                accPaint.color = tinted(Skins.Slot.SHOES, Color.parseColor("#9AA3B5"))
                 rect.set(sx0 - sw * 0.8f, sy0 - k * 0.12f, sx0 + sw * 0.8f, sy0 + sh * 0.5f)
                 canvas.drawRoundRect(rect, sw * 0.4f, sw * 0.4f, accPaint)
                 accPaint.color = Color.parseColor("#E53950")
@@ -283,14 +283,14 @@ internal fun GameView.drawCharacter(
                     canvas.drawCircle(sx0, sy0 + sh * 0.5f + fl * 0.3f, sw * 0.25f, accPaint)
                 }
             } else if (lookShoes == "bottes") {
-                accPaint.color = Color.parseColor("#4E2E1A")
+                accPaint.color = tinted(Skins.Slot.SHOES, Color.parseColor("#4E2E1A"), 0.55f)
                 rect.set(sx0 - sw * 1.1f, sy0 - sh * 0.9f, sx0 + sw * 1.1f, sy0 + sh * 1.15f)
                 canvas.drawOval(rect, accPaint)
-                accPaint.color = Color.parseColor("#7B4A2A")
+                accPaint.color = tinted(Skins.Slot.SHOES, Color.parseColor("#7B4A2A"))
                 rect.set(sx0 - sw * 1.05f, sy0 - sh * 1.1f, sx0 + sw * 1.05f, sy0 + sh * 0.8f)
                 canvas.drawOval(rect, accPaint)
             } else {
-                accPaint.color = Color.WHITE
+                accPaint.color = tinted(Skins.Slot.SHOES, Color.WHITE)
                 rect.set(sx0 - sw, sy0 - sh, sx0 + sw, sy0 + sh)
                 canvas.drawOval(rect, accPaint)
                 accPaint.color = Color.parseColor("#E53950")
@@ -392,15 +392,15 @@ internal fun GameView.drawCharacter(
     }
     when (lookGlasses) {
         "rondes" -> {
-            accStroke.color = Color.parseColor("#2E2A28")
+            accStroke.color = tinted(Skins.Slot.GLASSES, Color.parseColor("#2E2A28"))
             accStroke.strokeWidth = k * 0.022f
             val r = eyeR * 1.55f
             for (i in 0..1) canvas.drawCircle(ex[i], ey[i], r, accStroke)
             bridge(r)
         }
         "soleil" -> {
-            accPaint.color = Color.rgb(25, 25, 35)
-            accStroke.color = Color.rgb(25, 25, 35)
+            accPaint.color = tinted(Skins.Slot.GLASSES, Color.rgb(25, 25, 35))
+            accStroke.color = tinted(Skins.Slot.GLASSES, Color.rgb(25, 25, 35))
             accStroke.strokeWidth = k * 0.025f
             for (i in 0..1) {
                 rect.set(ex[i] - eyeR * 1.6f, ey[i] - eyeR * 1.15f, ex[i] + eyeR * 1.6f, ey[i] + eyeR * 1.15f)
@@ -412,7 +412,7 @@ internal fun GameView.drawCharacter(
         }
         "pixel" -> {
             // Lunettes « 8 bits » : une barre noire et deux verres en escalier
-            accPaint.color = Color.rgb(20, 20, 25)
+            accPaint.color = tinted(Skins.Slot.GLASSES, Color.rgb(20, 20, 25))
             val gw = eyeR * 1.7f
             val gy = (ey[0] + ey[1]) / 2f
             val gx0 = minOf(ex[0], ex[1]) - gw
@@ -427,14 +427,14 @@ internal fun GameView.drawCharacter(
         }
         "monocle" -> {
             val i = 1
-            accStroke.color = Color.parseColor("#D4A017")
+            accStroke.color = tinted(Skins.Slot.GLASSES, Color.parseColor("#D4A017"))
             accStroke.strokeWidth = k * 0.022f
             canvas.drawCircle(ex[i], ey[i], eyeR * 1.6f, accStroke)
             accStroke.strokeWidth = k * 0.01f
             canvas.drawLine(ex[i] + eyeR * 1.2f, ey[i] + eyeR * 1.1f, ex[i] + eyeR * 1.6f, ey[i] + eyeR * 5f, accStroke)
         }
         "coeur" -> {
-            accPaint.color = Color.parseColor("#FF4D8D")
+            accPaint.color = tinted(Skins.Slot.GLASSES, Color.parseColor("#FF4D8D"))
             val sz = eyeR * 1.2f
             for (i in 0..1) {
                 val x = ex[i]
@@ -446,7 +446,7 @@ internal fun GameView.drawCharacter(
                 tmpPath.close()
                 canvas.drawPath(tmpPath, accPaint)
             }
-            accStroke.color = Color.parseColor("#FF4D8D")
+            accStroke.color = tinted(Skins.Slot.GLASSES, Color.parseColor("#FF4D8D"))
             accStroke.strokeWidth = k * 0.02f
             bridge(sz * 1.1f)
         }
@@ -459,28 +459,28 @@ internal fun GameView.drawCharacter(
     val hy = isoY(0f, y1, 0f) + (if (ball) hs * 0.5f else 0f)
     when (lookHat) {
         "casquette" -> {
-            accPaint.color = Color.parseColor("#E53950")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#E53950"))
             rect.set(-hs * 0.85f, hy - hs * 0.75f, hs * 0.85f, hy + hs * 0.35f)
             canvas.drawArc(rect, 180f, 180f, true, accPaint)
-            accPaint.color = Color.parseColor("#B32638")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#B32638"), 0.75f)
             val vx = fdx * hs * 0.9f
             val vy = hy - hs * 0.2f + fdy * hs * 0.25f
             rect.set(vx - hs * 0.55f, vy - hs * 0.2f, vx + hs * 0.55f, vy + hs * 0.2f)
             canvas.drawOval(rect, accPaint)
         }
         "hautdeforme" -> {
-            accPaint.color = Color.parseColor("#22222C")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#22222C"))
             rect.set(-hs * 1.2f, hy - hs * 0.37f, hs * 1.2f, hy + hs * 0.27f)
             canvas.drawOval(rect, accPaint)
             canvas.drawRect(-hs * 0.72f, hy - hs * 1.45f, hs * 0.72f, hy - hs * 0.05f, accPaint)
             accPaint.color = Color.parseColor("#E53950")
             canvas.drawRect(-hs * 0.72f, hy - hs * 0.45f, hs * 0.72f, hy - hs * 0.2f, accPaint)
-            accPaint.color = Color.parseColor("#3A3A48")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#3A3A48"), 1.15f)
             rect.set(-hs * 0.72f, hy - hs * 1.65f, hs * 0.72f, hy - hs * 1.25f)
             canvas.drawOval(rect, accPaint)
         }
         "magicien" -> {
-            accPaint.color = Color.parseColor("#2F3FA8")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#2F3FA8"))
             rect.set(-hs * 1.15f, hy - hs * 0.3f, hs * 1.15f, hy + hs * 0.25f)
             canvas.drawOval(rect, accPaint)
             tmpPath.reset()
@@ -506,7 +506,7 @@ internal fun GameView.drawCharacter(
                 canvas.drawPath(tmpPath, accPaint)
             }
             // Casque
-            accPaint.color = Color.parseColor("#8D96A8")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#8D96A8"))
             rect.set(-hs * 0.85f, hy - hs * 0.85f, hs * 0.85f, hy + hs * 0.35f)
             canvas.drawArc(rect, 180f, 180f, true, accPaint)
             accPaint.color = Color.parseColor("#C98A00")
@@ -514,17 +514,17 @@ internal fun GameView.drawCharacter(
         }
         "bonnet" -> {
             // Bonnet de laine avec revers et pompon
-            accPaint.color = Color.parseColor("#3F8EFC")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#3F8EFC"))
             rect.set(-hs * 0.9f, hy - hs * 1.1f, hs * 0.9f, hy + hs * 0.5f)
             canvas.drawArc(rect, 180f, 180f, true, accPaint)
-            accPaint.color = Color.parseColor("#2C6ED5")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#2C6ED5"), 0.8f)
             rect.set(-hs * 0.95f, hy - hs * 0.42f, hs * 0.95f, hy - hs * 0.08f)
             canvas.drawRoundRect(rect, hs * 0.15f, hs * 0.15f, accPaint)
             accPaint.color = Color.WHITE
             canvas.drawCircle(0f, hy - hs * 1.15f, hs * 0.22f, accPaint)
         }
         "cowboy" -> {
-            accPaint.color = Color.parseColor("#A0673A")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#A0673A"))
             // Large bord relevé
             rect.set(-hs * 1.5f, hy - hs * 0.4f, hs * 1.5f, hy + hs * 0.25f)
             canvas.drawOval(rect, accPaint)
@@ -535,20 +535,20 @@ internal fun GameView.drawCharacter(
             tmpPath.quadTo(0f, hy - hs * 0.75f, hs * 0.6f, hy - hs * 1.05f)
             tmpPath.lineTo(hs * 0.7f, hy - hs * 0.15f)
             tmpPath.close()
-            accPaint.color = Color.parseColor("#B57A45")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#B57A45"), 1.1f)
             canvas.drawPath(tmpPath, accPaint)
             accPaint.color = Color.parseColor("#4E2E1A")
             canvas.drawRect(-hs * 0.68f, hy - hs * 0.42f, hs * 0.68f, hy - hs * 0.25f, accPaint)
         }
         "aureole" -> {
-            accStroke.color = Color.parseColor("#FFD54F")
+            accStroke.color = tinted(Skins.Slot.HAT, Color.parseColor("#FFD54F"))
             accStroke.strokeWidth = k * 0.035f
             val ay = hy - hs * 0.7f + kotlin.math.sin(time * 3f) * hs * 0.08f
             rect.set(-hs * 0.85f, ay - hs * 0.25f, hs * 0.85f, ay + hs * 0.25f)
             canvas.drawOval(rect, accStroke)
         }
         "couronne" -> {
-            accPaint.color = Color.parseColor("#F5C542")
+            accPaint.color = tinted(Skins.Slot.HAT, Color.parseColor("#F5C542"))
             tmpPath.reset()
             tmpPath.moveTo(-hs * 0.8f, hy + hs * 0.05f)
             tmpPath.lineTo(-hs * 0.8f, hy - hs * 0.75f)
@@ -573,6 +573,12 @@ internal fun GameView.drawCharacter(
     canvas.restore()
 }
 
+/** Couleur d'un objet : la peinture choisie pour cet emplacement, sinon sa couleur d'origine. */
+internal fun GameView.tinted(slot: Skins.Slot, original: Int, f: Float = 1f): Int {
+    val t = tintColors[slot] ?: 0
+    return if (t == 0) original else shade(t, f)
+}
+
 /** Charge l'apparence choisie (et repasse sur un élément gratuit s'il n'est plus débloqué). */
 internal fun GameView.loadLook() {
     fun pick(slot: Skins.Slot): String {
@@ -586,6 +592,10 @@ internal fun GameView.loadLook() {
     lookBack = pick(Skins.Slot.BACK)
     lookTrail = pick(Skins.Slot.TRAIL)
     lookColor = pick(Skins.Slot.COLOR)
+    for (slot in Skins.tintable) {
+        val t = Skins.tint(profile.selectedTint(slot))
+        tintColors[slot] = if (profile.ownsTint(t)) t.color else 0
+    }
     val c = Skins.find(Skins.Slot.COLOR, lookColor).color
     playerTop.color = shade(c, 1.18f)
     playerLeft.color = c

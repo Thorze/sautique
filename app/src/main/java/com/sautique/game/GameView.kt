@@ -86,6 +86,7 @@ class GameView(context: Context) : View(context) {
     internal var boardTab = 0              // 0 perso, 1 semaine, 2 mondial
     internal var pseudoConflict = false
     internal var pendingBuy: Skins.Item? = null
+    internal var pendingTint: Skins.Tint? = null
     internal val shopPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#F5C542") }
 
     // Effets
@@ -148,10 +149,12 @@ class GameView(context: Context) : View(context) {
     internal var lookColor = "orange"
     internal var lookBack = Skins.NONE
     internal var lookTrail = Skins.NONE
+    internal val tintColors = HashMap<Skins.Slot, Int>()
     internal var trailTimer = 0f
 
-    // Vies bonus : un cœur à ramasser tous les [lifeEvery] sauts
+    // Vies bonus : un cœur à ramasser à chaque palier de [lifeEvery] points
     internal val lifeEvery = 30
+    internal var nextHeartScore = 30
     internal val maxLives = 3
     internal var lives = 0
     internal var reviveT = 0f
@@ -362,6 +365,7 @@ class GameView(context: Context) : View(context) {
         runTime = 0f
         coinsThisRun = 0
         lives = 0
+        nextHeartScore = lifeEvery
         pendingBounce = false
         autoJump = false
         particles.clear()
@@ -417,10 +421,13 @@ class GameView(context: Context) : View(context) {
             c < 0.18f -> 1
             else -> 0
         }
-        // Un cœur (vie bonus) sur la plateforme du 30e, 60e… saut
-        if ((jumps + 1) % lifeEvery == 0 && lives < maxLives) {
-            next.heart = true
-            next.coin = 0
+        // Un cœur (vie bonus) dès qu'on passe 30, 60, 90… points
+        if (score >= nextHeartScore) {
+            while (nextHeartScore <= score) nextHeartScore += lifeEvery
+            if (lives < maxLives && next.kind != PlatformKind.MOVING) {
+                next.heart = true
+                next.coin = 0
+            }
         }
         platforms.add(next)
         while (platforms.size > 6) platforms.removeAt(0)
