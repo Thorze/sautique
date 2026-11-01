@@ -32,6 +32,7 @@ const skyStars = Array.from({ length: 70 }, () => [rnd(), rnd() * 0.75, rnd() * 
 let lastWheelIdx = -1, settingsReturnState = State.READY;
 const sfxSlider = new RectF(), musicSlider = new RectF();
 let dragSlider = 0;
+let boardScroll = 0, boardMaxScroll = 0, boardListTop = 0, boardListBottom = 0, boardDragY = -1, boardDragStart = 0, boardScrollToMe = false;
 let boardReturnState = State.READY, worldStatus = 'idle', worldEntries = [], worldRank = null, personalRuns = [];
 let syncing = false;
 let buttons = [];
@@ -538,6 +539,8 @@ function draw(canvas) {
 // ---------- Entrées tactiles ----------
 function onPointerDown(x, y) {
   sounds.unlock();
+  // Défilement du classement avec le doigt
+  if (state === State.LEADERBOARD && y >= boardListTop && y <= boardListBottom) { boardDragY = y; boardDragStart = boardScroll; return; }
   if (state === State.SETTINGS) {
     const pad = w * 0.06;
     dragSlider = (y >= sfxSlider.top - pad && y <= sfxSlider.bottom + pad) ? 1
@@ -549,8 +552,12 @@ function onPointerDown(x, y) {
   if (state === State.READY) { if (!pendingBounce) { state = State.CHARGING; charge = 0; } }
   else if (state === State.BONUS) bonusTap(x, y);
 }
-function onPointerMove(x) { if (state === State.SETTINGS && dragSlider) dragTo(x); }
+function onPointerMove(x, y) {
+  if (state === State.SETTINGS && dragSlider) dragTo(x);
+  if (state === State.LEADERBOARD && boardDragY >= 0) boardScroll = clamp(boardDragStart - (y - boardDragY), 0, boardMaxScroll);
+}
 function onPointerUp() {
+  boardDragY = -1;
   if (dragSlider === 1) sounds.play('GREAT');
   dragSlider = 0;
   if (state === State.CHARGING) startJump();

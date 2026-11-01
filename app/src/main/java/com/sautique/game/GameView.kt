@@ -84,6 +84,13 @@ class GameView(context: Context) : View(context) {
     internal var pausedFrom = State.READY
     internal var missionsReturnState = State.READY
     internal var boardTab = 0              // 0 perso, 1 semaine, 2 mondial
+    internal var boardScroll = 0f
+    internal var boardMaxScroll = 0f
+    internal var boardListTop = 0f
+    internal var boardListBottom = 0f
+    internal var boardDragY = -1f
+    internal var boardDragStart = 0f
+    internal var boardScrollToMe = false
     internal var pseudoConflict = false
     internal var pendingBuy: Skins.Item? = null
     internal var pendingTint: Skins.Tint? = null
@@ -474,8 +481,19 @@ class GameView(context: Context) : View(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_MOVE -> if (state == State.SETTINGS) dragTo(event.x)
+            MotionEvent.ACTION_MOVE -> {
+                if (state == State.SETTINGS) dragTo(event.x)
+                if (state == State.LEADERBOARD && boardDragY >= 0f) {
+                    boardScroll = (boardDragStart - (event.y - boardDragY)).coerceIn(0f, boardMaxScroll)
+                }
+            }
             MotionEvent.ACTION_DOWN -> {
+                // Défilement du classement avec le doigt
+                if (state == State.LEADERBOARD && event.y in boardListTop..boardListBottom) {
+                    boardDragY = event.y
+                    boardDragStart = boardScroll
+                    return true
+                }
                 if (state == State.SETTINGS) {
                     val pad = w * 0.06f
                     dragSlider = when {
@@ -505,6 +523,7 @@ class GameView(context: Context) : View(context) {
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                boardDragY = -1f
                 if (dragSlider == 1) sounds.play(Sounds.Sfx.GREAT)
                 dragSlider = 0
                 if (state == State.CHARGING) startJump()

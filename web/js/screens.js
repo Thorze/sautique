@@ -62,10 +62,14 @@ function syncOnline() {
   });
 }
 
+/** Nombre de joueurs affichés dans les classements en ligne. */
+const BOARD_SIZE = 50;
+
 function openBoard(tab) {
   if (state !== State.LEADERBOARD) boardReturnState = state;
   state = State.LEADERBOARD;
   boardTab = tab;
+  boardScroll = 0;
   personalRuns = profile.topRuns();
   if (tab > 0) loadWorld();
 }
@@ -74,10 +78,10 @@ function loadWorld() {
   worldStatus = 'loading';
   worldRank = null;
   const tab = boardTab;
-  online.fetchBoard(10, profile.playerId, tab === 1 ? 'week' : 'all').then((board) => {
+  online.fetchBoard(BOARD_SIZE, profile.playerId, tab === 1 ? 'week' : 'all').then((board) => {
     if (boardTab !== tab) return;
     if (!board) worldStatus = 'error';
-    else { worldEntries = board.top; worldRank = board.myRank; worldStatus = 'ok'; }
+    else { worldEntries = board.top; worldRank = board.myRank; worldStatus = 'ok'; boardScrollToMe = true; }
   });
 }
 
@@ -134,14 +138,25 @@ function drawLeaderboard(canvas) {
     drawButton(canvas, new RectF(x0 + w * 0.006, tabTop, x0 + tw - w * 0.006, tabTop + tabH), label,
       boardTab === i ? tabOnPaint : tabOffPaint, w * 0.04, () => openBoard(i));
   });
-  const listTop = tabTop + tabH + w * 0.06, footer = bottom - w * 0.2;
+  const listTop = tabTop + tabH + w * 0.06, footer = bottom - w * 0.2, listBottom = footer - w * 0.06;
   const rowH = (footer - w * 0.08 - listTop) / profile.MAX_RUNS;
+  // Liste défilable (classements en ligne : jusqu'à 50 joueurs)
+  const count = boardTab === 0 ? personalRuns.length : worldStatus === 'ok' ? worldEntries.length : 0;
+  boardListTop = listTop; boardListBottom = listBottom;
+  boardMaxScroll = Math.max(0, count * rowH - (listBottom - listTop));
+  if (boardScrollToMe) {
+    boardScrollToMe = false;
+    const me = worldEntries.findIndex((e) => e.me);
+    if (me >= 0) boardScroll = (me + 0.5) * rowH - (listBottom - listTop) / 2;
+  }
+  boardScroll = clamp(boardScroll, 0, boardMaxScroll);
   darkTextPaint.textSize = Math.min(w * 0.048, rowH * 0.5);
   greyTextPaint.textSize = w * 0.045;
   const colRank = left + w * 0.06, colName = left + w * 0.17, colScore = right - w * 0.06;
   const centerY = (listTop + footer) / 2;
   const row = (i, name, value, mine) => {
-    const y = listTop + rowH * i;
+    const y = listTop + rowH * i - boardScroll;
+    if (y + rowH < listTop || y > listBottom) return;
     if (mine) { rect.set(left + w * 0.03, y, right - w * 0.03, y + rowH * 0.92); canvas.drawRoundRect(rect, rowH * 0.3, rowH * 0.3, highlightPaint); }
     const ty = y + rowH * 0.46 - (darkTextPaint.descent() + darkTextPaint.ascent()) / 2;
     darkTextPaint.textAlign = Align.LEFT;
@@ -165,7 +180,17 @@ function drawLeaderboard(canvas) {
       canvas.drawText('Vérifie ta connexion.', w / 2, centerY + w * 0.07, greyTextPaint);
     } else {
       if (!worldEntries.length) canvas.drawText("Aucun score pour l'instant.", w / 2, centerY, greyTextPaint);
+      canvas.save();
+      canvas.clipRect(left, listTop, right, listBottom);
       worldEntries.forEach((e, i) => row(i, e.pseudo, String(e.best), e.me));
+      canvas.restore();
+      if (boardMaxScroll > 0) {
+        const trackH = listBottom - listTop;
+        const thumbH = Math.max(w * 0.06, trackH * trackH / (trackH + boardMaxScroll));
+        const ty0 = listTop + (trackH - thumbH) * (boardScroll / boardMaxScroll);
+        rect.set(right - w * 0.025, ty0, right - w * 0.012, ty0 + thumbH);
+        canvas.drawRoundRect(rect, w * 0.01, w * 0.01, lockedPaint);
+      }
     }
     greyTextPaint.textSize = w * 0.04;
     const pseudo = profile.pseudo || '';

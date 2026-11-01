@@ -98,11 +98,15 @@ internal fun GameView.syncOnline() {
     }
 }
 
+/** Nombre de joueurs affichés dans les classements en ligne. */
+internal const val BOARD_SIZE = 50
+
 /** Classement : 0 = perso, 1 = semaine, 2 = de tous les temps. */
 internal fun GameView.openBoard(tab: Int) {
     if (state != State.LEADERBOARD) boardReturnState = state
     state = State.LEADERBOARD
     boardTab = tab
+    boardScroll = 0f
     personalRuns = profile.topRuns()
     if (tab > 0) loadWorld()
 }
@@ -115,7 +119,7 @@ internal fun GameView.loadWorld() {
     worldStatus = WorldStatus.LOADING
     worldRank = null
     val tab = boardTab
-    online.fetchBoard(10, profile.playerId, if (tab == 1) "week" else "all") { board ->
+    online.fetchBoard(BOARD_SIZE, profile.playerId, if (tab == 1) "week" else "all") { board ->
         if (boardTab != tab) return@fetchBoard
         if (board == null) {
             worldStatus = WorldStatus.ERROR
@@ -123,6 +127,7 @@ internal fun GameView.loadWorld() {
             worldEntries = board.top
             worldRank = board.myRank
             worldStatus = WorldStatus.OK
+            boardScrollToMe = true
         }
     }
 }
@@ -207,7 +212,19 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
     // Lignes
     val listTop = tabTop + tabH + w * 0.06f
     val footer = bottom - w * 0.2f
+    val listBottom = footer - w * 0.06f
     val rowH = (footer - w * 0.08f - listTop) / LocalScores.MAX_RUNS
+    // Liste défilable (classements en ligne : jusqu'à 50 joueurs)
+    val count = if (boardTab == 0) personalRuns.size else if (worldStatus == WorldStatus.OK) worldEntries.size else 0
+    boardListTop = listTop
+    boardListBottom = listBottom
+    boardMaxScroll = (count * rowH - (listBottom - listTop)).coerceAtLeast(0f)
+    if (boardScrollToMe) {
+        boardScrollToMe = false
+        val me = worldEntries.indexOfFirst { it.me }
+        if (me >= 0) boardScroll = ((me + 0.5f) * rowH - (listBottom - listTop) / 2f)
+    }
+    boardScroll = boardScroll.coerceIn(0f, boardMaxScroll)
     val rowText = min(w * 0.048f, rowH * 0.5f)
     darkTextPaint.textSize = rowText
     greyTextPaint.textSize = w * 0.045f
@@ -217,7 +234,8 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
     val centerY = (listTop + footer) / 2f
 
     fun row(i: Int, name: String, value: String, mine: Boolean) {
-        val y = listTop + rowH * i
+        val y = listTop + rowH * i - boardScroll
+        if (y + rowH < listTop || y > listBottom) return
         if (mine) {
             rect.set(left + w * 0.03f, y, right - w * 0.03f, y + rowH * 0.92f)
             canvas.drawRoundRect(rect, rowH * 0.3f, rowH * 0.3f, highlightPaint)
@@ -250,7 +268,18 @@ internal fun GameView.drawLeaderboard(canvas: Canvas) {
                 canvas.drawText("Classement mondial non configuré.", w / 2f, centerY, greyTextPaint)
             WorldStatus.OK -> {
                 if (worldEntries.isEmpty()) canvas.drawText("Aucun score pour l'instant.", w / 2f, centerY, greyTextPaint)
+                canvas.save()
+                canvas.clipRect(left, listTop, right, listBottom)
                 worldEntries.forEachIndexed { i, e -> row(i, e.pseudo, e.best.toString(), e.me) }
+                canvas.restore()
+                // Barre de défilement
+                if (boardMaxScroll > 0f) {
+                    val trackH = listBottom - listTop
+                    val thumbH = (trackH * trackH / (trackH + boardMaxScroll)).coerceAtLeast(w * 0.06f)
+                    val ty0 = listTop + (trackH - thumbH) * (boardScroll / boardMaxScroll)
+                    rect.set(right - w * 0.025f, ty0, right - w * 0.012f, ty0 + thumbH)
+                    canvas.drawRoundRect(rect, w * 0.01f, w * 0.01f, lockedPaint)
+                }
             }
         }
         greyTextPaint.textSize = w * 0.04f

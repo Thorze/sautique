@@ -37,7 +37,7 @@ const WEB_VERSION = '1.0';
     try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignoré */ }
     const [x, y] = pos(e); onPointerDown(x, y);
   });
-  el.addEventListener('pointermove', (e) => { if (e.pointerId === activePointer) onPointerMove(pos(e)[0]); });
+  el.addEventListener('pointermove', (e) => { if (e.pointerId === activePointer) { const [x, y] = pos(e); onPointerMove(x, y); } });
   const up = (e) => { if (e.pointerId !== activePointer) return; activePointer = null; onPointerUp(); };
   el.addEventListener('pointerup', up);
   el.addEventListener('pointercancel', up);
@@ -47,6 +47,12 @@ const WEB_VERSION = '1.0';
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { pauseGame(); sounds.pause(); } else { lastFrame = 0; sounds.resume(); }
   });
+  // Molette (ordinateur) : défilement du classement
+  el.addEventListener('wheel', (e) => {
+    if (state !== State.LEADERBOARD) return;
+    e.preventDefault();
+    boardScroll = clamp(boardScroll + e.deltaY * (el.width / el.getBoundingClientRect().width), 0, boardMaxScroll);
+  }, { passive: false });
   window.addEventListener('resize', resize);
 
   resize();
