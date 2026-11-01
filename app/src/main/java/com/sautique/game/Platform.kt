@@ -58,6 +58,8 @@ internal class Platform(
     /** Temps écoulé depuis le début de l'effritement (négatif = pas commencé). */
     var crumbleT = -1f
     var crumbleDur = 2f
+    /** Sauvée par un niveau bonus : tremble mais ne s'effondre pas. */
+    var crumbleSafe = false
     /** Chute de la plateforme une fois effondrée (unités vers le bas). */
     var dropY = 0f
     var dropV = 0f

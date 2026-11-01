@@ -9,7 +9,7 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
 - Tomber dans le vide = partie terminée. Le record est sauvegardé.
 - **Bonus** tous les 10 sauts réussis, d'un type tiré au hasard (raté = pas de points, mais
   la partie continue) :
-  - *Curseur* : touche quand le curseur est dans la zone verte (+5) ;
+  - *Curseur* : touche au plus près du centre vert (de 0 à +10 selon la précision) ;
   - *Tape-tape* : tape le plus vite possible pendant 3 s (+1 toutes les 4 tapes, max +10) ;
   - *Attrape les étoiles* : touche les étoiles avant qu'elles disparaissent (+1 par étoile) ;
   - *Roue de la fortune* : arrête la roue (0 à +10).

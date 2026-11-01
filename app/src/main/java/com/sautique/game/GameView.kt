@@ -192,13 +192,12 @@ class GameView(context: Context) : View(context) {
     internal val perfectBarPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     internal val perfectBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(110, 30, 30, 50) }
 
-    // Bonus : curseur entre -1 et 1, zone verte entre -bonusGreen et +bonusGreen
+    // Bonus : curseur entre -1 et 1 (0 = centre vert)
     internal var bonusCount = 0
     internal var bonusT = 0f
     internal var bonusPos = -1f
     internal var bonusDir = 1f
     internal var bonusSpeed = 1.4f
-    internal var bonusGreen = 0.28f
     internal var bonusResult = 0         // 0 en cours, 1 terminé
     internal var bonusResultT = 0f
     internal var bonusType = BonusType.TIMING
@@ -741,6 +740,9 @@ class GameView(context: Context) : View(context) {
                 if (p.collapsed) {
                     p.dropV += 30f * dt
                     p.dropY += p.dropV * dt
+                } else if (p.crumbleT >= 0f && p.crumbleSafe) {
+                    // Après un bonus : elle tremble toujours, sans jamais s'effondrer
+                    p.crumbleT = min(p.crumbleT + dt, p.crumbleDur * 0.85f)
                 } else if (p.crumbleT >= 0f) {
                     p.crumbleT += dt
                     if (p.crumbleT >= p.crumbleDur) {

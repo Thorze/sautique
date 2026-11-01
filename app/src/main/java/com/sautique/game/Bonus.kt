@@ -23,7 +23,6 @@ internal fun GameView.startBonus() {
     // Un type au hasard, différent du précédent
     val types = BonusType.values().filter { bonusCount == 1 || it != bonusType }
     bonusType = types[Random.nextInt(types.size)]
-    bonusGreen = maxOf(0.08f, 0.28f - 0.03f * (bonusCount - 1))
     bonusSpeed = min(1.4f + 0.3f * (bonusCount - 1), 3.6f)
     bonusPos = -1f
     bonusDir = 1f
@@ -47,7 +46,7 @@ internal fun GameView.startBonus() {
 internal fun GameView.bonusTap(x: Float, y: Float) {
     if (bonusResult != 0 || bonusT < bonusIntro) return
     when (bonusType) {
-        BonusType.TIMING -> finishBonus(if (abs(bonusPos) <= bonusGreen) bonusReward else 0)
+        BonusType.TIMING -> finishBonus(Scoring.cursorPoints(bonusPos))
         BonusType.MASH -> {
             bonusTaps++
             bonusPulse = 1f
@@ -124,17 +123,29 @@ internal fun GameView.drawBonus(canvas: Canvas) {
     val cy = h * 0.55f
     when (bonusType) {
         BonusType.TIMING -> {
-            // Barre : rouge aux extrémités, vert au milieu
+            // Barre en dégradé : rouge aux extrémités, jaune, vert au centre
             val left = w * 0.1f
             val right = w * 0.9f
             val bh = w * 0.1f
             val half = (right - left) / 2f
             val mid = (left + right) / 2f
             rect.set(left, cy - bh / 2, right, cy + bh / 2)
-            canvas.drawRoundRect(rect, bh / 2, bh / 2, redZonePaint)
-            rect.set(mid - half * bonusGreen, cy - bh / 2, mid + half * bonusGreen, cy + bh / 2)
-            canvas.drawRect(rect, greenZonePaint)
+            itemPaint.shader = LinearGradient(
+                left, 0f, right, 0f,
+                intArrayOf(
+                    Color.parseColor("#E53950"), Color.parseColor("#FFC93C"), Color.parseColor("#3DBE6E"),
+                    Color.parseColor("#FFC93C"), Color.parseColor("#E53950")
+                ),
+                floatArrayOf(0f, 0.3f, 0.5f, 0.7f, 1f), Shader.TileMode.CLAMP
+            )
+            canvas.drawRoundRect(rect, bh / 2, bh / 2, itemPaint)
+            itemPaint.shader = null
             val cx = mid + half * bonusPos
+            // Gain en direct au-dessus du curseur
+            if (bonusResult == 0 && bonusT >= bonusIntro) {
+                textPaint.textSize = w * 0.06f
+                canvas.drawText("+${Scoring.cursorPoints(bonusPos)}", cx, cy - bh / 2 - w * 0.07f, textPaint)
+            }
             val cw = w * 0.025f
             val ch = bh + w * 0.07f
             rect.set(cx - cw / 2, cy - ch / 2, cx + cw / 2, cy + ch / 2)
@@ -272,6 +283,8 @@ internal fun GameView.updateBonus(dt: Float) {
         bonusResultT += dt
         // Raté ou réussi, la partie continue
         if (bonusResultT > 1.3f) {
+            // La plateforme fragile sous le personnage continue de trembler mais ne s'effondre plus
+            if (current.crumbly) current.crumbleSafe = true
             state = State.READY
             sounds.playPlaylist()
         }

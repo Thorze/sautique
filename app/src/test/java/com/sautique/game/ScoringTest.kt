@@ -16,6 +16,15 @@ class ScoringTest {
     }
 
     @Test
+    fun cursorPointsDependOnDistanceToCenter() {
+        assertEquals(10, Scoring.cursorPoints(0f))
+        assertEquals(10, Scoring.cursorPoints(-0.02f))
+        assertEquals(3, Scoring.cursorPoints(0.45f))
+        assertEquals(0, Scoring.cursorPoints(1f))
+        assertEquals(0, Scoring.cursorPoints(-1f))
+    }
+
+    @Test
     fun versionCodeFromTag() {
         assertEquals(40000, Scoring.versionCodeOf("v4.0"))
         assertEquals(40201, Scoring.versionCodeOf("v4.2.1"))
