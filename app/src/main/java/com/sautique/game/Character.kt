@@ -177,6 +177,56 @@ internal fun GameView.drawCharacter(
     val hgt = shapeHeight(scaleH)
     val y1 = y0 + hgt
 
+    // Direction du regard à l'écran (+x : en haut à droite, +z : en haut à gauche, caméra : vers le bas)
+    val fdx = if (front) 0f else if (dirX) 0.866f else -0.866f
+    val fdy = if (front) 0.5f else -0.5f
+
+    // --- Chaussures (dessinées avant le corps : il en cache le haut, on voit dépasser les pieds) ---
+    if (lookShoes != Skins.NONE) {
+        val fa = if (lookShape == "boule") a * 0.6f else a
+        for (i in 0..1) {
+            val wx = if (i == 0) -fa * 0.85f else fa * 0.15f
+            val wz = if (i == 0) fa * 0.15f else -fa * 0.85f
+            val sx0 = isoX(wx, wz) + fdx * k * 0.07f
+            val sy0 = isoY(wx, y0, wz) + k * 0.05f
+            val sw = k * 0.12f
+            val sh = k * 0.065f
+            if (lookShoes == "fusees") {
+                accPaint.color = Color.parseColor("#9AA3B5")
+                rect.set(sx0 - sw * 0.8f, sy0 - k * 0.12f, sx0 + sw * 0.8f, sy0 + sh * 0.5f)
+                canvas.drawRoundRect(rect, sw * 0.4f, sw * 0.4f, accPaint)
+                accPaint.color = Color.parseColor("#E53950")
+                canvas.drawRect(sx0 - sw * 0.8f, sy0 - k * 0.07f, sx0 + sw * 0.8f, sy0 - k * 0.04f, accPaint)
+                // Flammes en l'air
+                if (y0 > 0.05f || state == State.FALLING) {
+                    val fl = k * (0.14f + 0.06f * kotlin.math.sin(time * 40f + i))
+                    tmpPath.reset()
+                    tmpPath.moveTo(sx0 - sw * 0.55f, sy0 + sh * 0.5f)
+                    tmpPath.lineTo(sx0 + sw * 0.55f, sy0 + sh * 0.5f)
+                    tmpPath.lineTo(sx0, sy0 + sh * 0.5f + fl)
+                    tmpPath.close()
+                    accPaint.color = Color.parseColor("#FF9F1C")
+                    canvas.drawPath(tmpPath, accPaint)
+                    accPaint.color = Color.parseColor("#FFE066")
+                    canvas.drawCircle(sx0, sy0 + sh * 0.5f + fl * 0.3f, sw * 0.25f, accPaint)
+                }
+            } else if (lookShoes == "bottes") {
+                accPaint.color = Color.parseColor("#4E2E1A")
+                rect.set(sx0 - sw * 1.1f, sy0 - sh * 0.9f, sx0 + sw * 1.1f, sy0 + sh * 1.15f)
+                canvas.drawOval(rect, accPaint)
+                accPaint.color = Color.parseColor("#7B4A2A")
+                rect.set(sx0 - sw * 1.05f, sy0 - sh * 1.1f, sx0 + sw * 1.05f, sy0 + sh * 0.8f)
+                canvas.drawOval(rect, accPaint)
+            } else {
+                accPaint.color = Color.WHITE
+                rect.set(sx0 - sw, sy0 - sh, sx0 + sw, sy0 + sh)
+                canvas.drawOval(rect, accPaint)
+                accPaint.color = Color.parseColor("#E53950")
+                canvas.drawRect(sx0 - sw * 0.5f, sy0 - sh * 0.35f, sx0 + sw * 0.5f, sy0 + sh * 0.1f, accPaint)
+            }
+        }
+    }
+
     // --- Corps ---
     when (lookShape) {
         "cylindre" -> {
@@ -213,54 +263,6 @@ internal fun GameView.drawCharacter(
             canvas.drawPath(tmpPath, playerRight)
             quad(tmpPath, -a, y1, -a, a, y1, -a, a, y1, a, -a, y1, a)
             canvas.drawPath(tmpPath, playerTop)
-        }
-    }
-
-    // Direction du regard à l'écran (+x : en haut à droite, +z : en haut à gauche, caméra : vers le bas)
-    val fdx = if (front) 0f else if (dirX) 0.866f else -0.866f
-    val fdy = if (front) 0.5f else -0.5f
-
-    // --- Chaussures ---
-    if (lookShoes != Skins.NONE) {
-        val fa = if (lookShape == "boule") a * 0.6f else a
-        for (i in 0..1) {
-            val wx = if (i == 0) -fa * 0.85f else fa * 0.15f
-            val wz = if (i == 0) fa * 0.15f else -fa * 0.85f
-            val sx0 = isoX(wx, wz) + fdx * k * 0.05f
-            val sy0 = isoY(wx, y0, wz)
-            val sw = k * 0.12f
-            val sh = k * 0.06f
-            if (lookShoes == "fusees") {
-                accPaint.color = Color.parseColor("#9AA3B5")
-                rect.set(sx0 - sw * 0.8f, sy0 - k * 0.12f, sx0 + sw * 0.8f, sy0 + sh * 0.5f)
-                canvas.drawRoundRect(rect, sw * 0.4f, sw * 0.4f, accPaint)
-                accPaint.color = Color.parseColor("#E53950")
-                canvas.drawRect(sx0 - sw * 0.8f, sy0 - k * 0.07f, sx0 + sw * 0.8f, sy0 - k * 0.04f, accPaint)
-                // Flammes en l'air
-                if (y0 > 0.05f || state == State.FALLING) {
-                    val fl = k * (0.14f + 0.06f * kotlin.math.sin(time * 40f + i))
-                    tmpPath.reset()
-                    tmpPath.moveTo(sx0 - sw * 0.55f, sy0 + sh * 0.5f)
-                    tmpPath.lineTo(sx0 + sw * 0.55f, sy0 + sh * 0.5f)
-                    tmpPath.lineTo(sx0, sy0 + sh * 0.5f + fl)
-                    tmpPath.close()
-                    accPaint.color = Color.parseColor("#FF9F1C")
-                    canvas.drawPath(tmpPath, accPaint)
-                    accPaint.color = Color.parseColor("#FFE066")
-                    canvas.drawCircle(sx0, sy0 + sh * 0.5f + fl * 0.3f, sw * 0.25f, accPaint)
-                }
-            } else if (lookShoes == "bottes") {
-                accPaint.color = Color.parseColor("#7B4A2A")
-                canvas.drawRect(sx0 - sw * 0.6f, sy0 - k * 0.15f, sx0 + sw * 0.6f, sy0, accPaint)
-                rect.set(sx0 - sw, sy0 - sh, sx0 + sw, sy0 + sh)
-                canvas.drawOval(rect, accPaint)
-            } else {
-                accPaint.color = Color.WHITE
-                rect.set(sx0 - sw, sy0 - sh, sx0 + sw, sy0 + sh)
-                canvas.drawOval(rect, accPaint)
-                accPaint.color = Color.parseColor("#E53950")
-                canvas.drawRect(sx0 - sw * 0.5f, sy0 - sh * 0.35f, sx0 + sw * 0.5f, sy0 + sh * 0.1f, accPaint)
-            }
         }
     }
 
