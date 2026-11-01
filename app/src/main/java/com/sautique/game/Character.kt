@@ -26,6 +26,8 @@ internal fun GameView.shapeHeight(scaleH: Float) = scaleH * when (lookShape) {
 }
 
 internal fun GameView.drawPlayer(canvas: Canvas) {
+    // La traînée « Trait » passe derrière le personnage
+    drawRibbon(canvas)
     // Ombre sur la plateforme quand le personnage est au-dessus
     if (state != State.FALLING && (current.contains(px, pz) || next.contains(px, pz))) {
         val s = (1f - py / 4f).coerceIn(0.4f, 1f)

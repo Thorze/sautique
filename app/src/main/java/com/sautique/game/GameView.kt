@@ -151,6 +151,12 @@ class GameView(context: Context) : View(context) {
     internal var lookTrail = Skins.NONE
     internal val tintColors = HashMap<Skins.Slot, Int>()
     internal var trailTimer = 0f
+    /** Points du ruban de la traînée « Trait » : x, y (écran + caméra), vie restante. */
+    internal val ribbon = ArrayList<FloatArray>()
+    internal val ribbonPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+    }
 
     // Vies bonus : un cœur à ramasser tous les [lifeEvery] sauts réussis
     internal val lifeEvery = 30
@@ -367,6 +373,7 @@ class GameView(context: Context) : View(context) {
         pendingBounce = false
         autoJump = false
         particles.clear()
+        ribbon.clear()
         gameOverReason = null
         newBest = false
         charge = 0f

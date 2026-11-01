@@ -78,6 +78,8 @@ internal fun GameView.updateEffects(dt: Float) {
         shakeY = 0f
         shakeAmp = 0f
     }
+    for (r in ribbon) r[2] -= dt
+    ribbon.removeAll { it[2] <= 0f }
     val bi = banners.iterator()
     while (bi.hasNext()) {
         val b = bi.next()
@@ -207,6 +209,11 @@ internal fun GameView.drawHeart(canvas: Canvas, x: Float, y: Float, sz: Float, p
 /** Traînée choisie dans l'écran Personnage, émise pendant les sauts. */
 internal fun GameView.emitTrail(dt: Float) {
     if (lookTrail == Skins.NONE) return
+    if (lookTrail == "trait") {
+        // Un point à chaque image : le ruban suit exactement le saut
+        ribbon += floatArrayOf(sx(px, pz) + camX, sy(px, py + 0.28f, pz) + camY, RIBBON_LIFE)
+        return
+    }
     trailTimer -= dt
     if (trailTimer > 0f) return
     trailTimer = if (lookTrail == "arcenciel") 0.02f else 0.05f
@@ -224,5 +231,31 @@ internal fun GameView.emitTrail(dt: Float) {
             particles += Particle(sx(px, pz) + camX, sy(px, py + 0.25f, pz) + camY, 0f, 0f, 0.7f, 0.7f, k * 0.17f,
                 Color.HSVToColor(floatArrayOf(hue, 0.8f, 1f)), 0f, Particle.CIRCLE)
         }
+    }
+}
+
+private const val RIBBON_LIFE = 0.35f
+
+/** Traînée « Trait » : ruban large et transparent qui s'affine et s'efface. */
+internal fun GameView.drawRibbon(canvas: Canvas) {
+    if (ribbon.size < 2) return
+    val base = if (lookColor == Skins.RAINBOW || lookColor == Skins.GALAXY) Color.parseColor("#FFD54F")
+    else playerLeft.color
+    ribbonPaint.color = base
+    ribbonPaint.strokeJoin = android.graphics.Paint.Join.ROUND
+    // Tronçons d'un seul tenant (pas de surépaisseur aux jointures), de plus en plus fins et
+    // transparents vers la queue
+    val chunk = 5
+    var start = 0
+    while (start < ribbon.size - 1) {
+        val end = minOf(start + chunk, ribbon.size - 1)
+        tmpPath.reset()
+        tmpPath.moveTo(ribbon[start][0] - camX + shakeX, ribbon[start][1] - camY + shakeY)
+        for (i in start + 1..end) tmpPath.lineTo(ribbon[i][0] - camX + shakeX, ribbon[i][1] - camY + shakeY)
+        val f = (ribbon[end][2] / RIBBON_LIFE).coerceIn(0f, 1f)
+        ribbonPaint.alpha = (115 * f).toInt()
+        ribbonPaint.strokeWidth = k * 0.22f * (0.35f + 0.65f * f)
+        canvas.drawPath(tmpPath, ribbonPaint)
+        start = end
     }
 }

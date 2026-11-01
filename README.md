@@ -35,7 +35,7 @@ relâche pour sauter. Plus l'appui est long, plus le personnage va loin.
   vie (3 max) : en cas de chute, le personnage revient avec des ailes d'ange sur sa plateforme
   et la partie continue sans perdre le score.
 - **Collection** : formes, couleurs, lunettes, chapeaux, chaussures, objets de dos (cape, sac à
-  dos, ailes de papillon, jetpack) et traînées pendant les sauts (étoiles, bulles, notes, cœurs,
+  dos, ailes de papillon, jetpack) et traînées pendant les sauts (trait, étoiles, bulles, notes, cœurs,
   arc-en-ciel), à débloquer avec les points ou à acheter avec les pièces.
 - **Peintures** : couleurs achetées avec les pièces, applicables à n'importe quel objet
   (lunettes, chapeau, chaussures, dos).

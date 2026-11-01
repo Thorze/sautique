@@ -85,6 +85,7 @@ object Skins {
 
         // Traînée pendant les sauts
         Item(Slot.TRAIL, NONE, "Aucune", 0),
+        Item(Slot.TRAIL, "trait", "Trait", 80),
         Item(Slot.TRAIL, "etoiles", "Étoiles", 200),
         Item(Slot.TRAIL, "bulles", "Bulles", 550),
         Item(Slot.TRAIL, "notes", "Notes", 0, price = 250),
