@@ -68,6 +68,15 @@ class ServerTest(unittest.TestCase):
         # Ancienne version de l'appli (pas de durée ni de sauts)
         self.assertEqual(self.post({"id": A, "pseudo": "Tom", "score": 20})[0], 400)
 
+    def test_cors(self):
+        req = urllib.request.Request(self.base + "/api/scores", method="OPTIONS")
+        with urllib.request.urlopen(req) as r:
+            self.assertEqual(r.status, 204)
+            self.assertEqual(r.headers["Access-Control-Allow-Origin"], "*")
+            self.assertIn("POST", r.headers["Access-Control-Allow-Methods"])
+        with urllib.request.urlopen(self.base + "/api/top") as r:
+            self.assertEqual(r.headers["Access-Control-Allow-Origin"], "*")
+
     def test_plausible_rules(self):
         self.assertTrue(srv.plausible(0, 0, 0))
         self.assertTrue(srv.plausible(10, 20, 10))

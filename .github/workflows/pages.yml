@@ -1,0 +1,43 @@
+name: Site web
+
+# Publie la version navigateur (dossier web/) sur GitHub Pages à chaque modification.
+on:
+  push:
+    branches: ["claude/sleepy-euler-aowuk7"]
+    paths: ["web/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Contrôle de syntaxe
+        run: for f in web/js/*.js; do node --check "$f"; done
+
+      - name: Évite les vieux fichiers en cache après une mise à jour
+        run: |
+          V="${GITHUB_SHA::8}"
+          sed -i "s#\.js\"#.js?v=$V\"#g; s#style\.css\"#style.css?v=$V\"#" web/index.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

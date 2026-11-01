@@ -1,0 +1,41 @@
+:root {
+  --bg: #FDE2C8;
+  --ink: #2E3A59;
+  --accent: #FF7A45;
+  --card: #FAFAFA;
+  --muted: #7A869A;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden; background: #2E3A59;
+  overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  font-family: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+}
+#game { display: block; position: fixed; top: 0; left: 0; touch-action: none; box-shadow: 0 0 40px rgba(0, 0, 0, 0.25); }
+/* Sert à lire la taille de l'encoche et de la barre du bas (safe-area) */
+#safe-probe {
+  position: fixed; visibility: hidden; pointer-events: none;
+  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
+}
+#pseudo-dialog {
+  position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+  background: rgba(10, 15, 30, 0.6); padding: 16px; z-index: 10;
+}
+#pseudo-dialog.open { display: flex; }
+.card {
+  width: 100%; max-width: 360px; background: var(--card); color: var(--ink);
+  border-radius: 20px; padding: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.card h2 { margin: 0 0 6px; font-size: 1.3rem; }
+.card p { margin: 0 0 14px; color: var(--muted); font-size: 0.95rem; }
+.card input {
+  width: 100%; font-size: 1.1rem; padding: 12px 14px; border-radius: 12px;
+  border: 2px solid #E3E7EE; color: var(--ink); background: #fff; -webkit-user-select: text; user-select: text;
+}
+.card input:focus { outline: none; border-color: var(--accent); }
+.actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.actions button {
+  font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 10px 22px;
+  background: var(--accent); color: #fff; cursor: pointer;
+}
+.actions button.secondary { background: #E3E7EE; color: var(--ink); }

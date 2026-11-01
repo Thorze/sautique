@@ -78,6 +78,19 @@ Les scores sont stockés sur ton VPS par un petit serveur fourni dans `server/`.
 Tant que ce n'est pas configuré, le jeu marche normalement et le top mondial
 affiche « Classement mondial non configuré ».
 
+## Version navigateur (iPhone, ordinateur…)
+
+Le dossier `web/` contient le même jeu en HTML/JavaScript (Canvas), jouable dans Safari,
+Chrome, etc. Il partage le classement avec l'appli Android (même serveur de scores).
+
+- Adresse : **https://thorze.github.io/sautique/** (publiée automatiquement par le workflow
+  *Site web* à chaque modification de `web/`).
+- Sur iPhone : ouvrir le lien dans Safari, puis **Partager › Sur l'écran d'accueil** pour
+  l'avoir en plein écran comme une appli.
+- La progression (pièces, skins, missions) est gardée dans le navigateur, séparément de
+  l'appli Android.
+- Tester en local : `cd web && python3 -m http.server 8000` puis http://localhost:8000.
+
 ## Sons et musique
 
 Dépose les fichiers dans `app/src/main/res/raw/` avec **exactement** ces noms

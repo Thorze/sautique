@@ -1,0 +1,14 @@
+{
+  "name": "Sautique",
+  "short_name": "Sautique",
+  "description": "Maintiens appuyé pour sauter de plateforme en plateforme.",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#FDE2C8",
+  "theme_color": "#FDE2C8",
+  "icons": [
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
